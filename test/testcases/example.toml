@@ -1,0 +1,20 @@
+[small001]
+name = 'img0'
+timelimit = 300 #[sec]
+mode = 'crop'
+selectable_times = 2
+partition = { size = 256, h = 3, w = 5 }
+cost = { choice = 5, repl = 1 }
+random_state = 42
+
+[standard001]
+name = 'img1'
+
+[large001]
+name = 'img2'
+timelimit = 1000
+mode = 'resize'
+partition = { size = 256, h = 16 }
+cost = { repl = 200 }
+    
+
