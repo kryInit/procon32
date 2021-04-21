@@ -20,16 +20,17 @@ options:
 import os
 import sys
 import toml
-import math
 import random
 import hashlib
-from PIL import Image, UnidentifiedImageError
+import numpy as np
+from PIL import Image
 from docopt import docopt
 
 TEST_DIR = os.path.dirname(sys.argv[0])
 TEST_DIR = '.' if TEST_DIR == '' else TEST_DIR
 IMG_DIR = os.path.normpath(TEST_DIR + '/.images')
 DATA_DIR = os.path.normpath(TEST_DIR + '/../.data')
+
 
 def add_img(img_path, force):
     print('registering ' + img_path)
@@ -94,8 +95,8 @@ def remove_registered_img(org_name):
     return True
 
 
-def check_config_value(config):
-    if not 'name' in config:
+def validate_config_value(config):
+    if 'name' not in config:
         print("    -> \033[31m[ValueError]: name (of a image) is always required\033[0m")
         return False
     
@@ -143,42 +144,85 @@ def check_config_value(config):
         print("    -> \033[31m[ValueError]: random_state must be int\033[0m")
         return False
 
+    if config['mode'] != 'resize' and config['mode'] != 'crop':
+        print("    -> \033[31m[ValueError]: mode must be 'resize' or 'crop'\033[0m")
+        return False
+
+    if config['timelimit'] < 300 or config['timelimit'] > 1200:
+        print("    -> \033[31m[ValueError]: timelimit range must be [300, 1200]\033[0m")
+        return False
+
+    if config['selectable_times'] < 2 or config['selectable_times'] > 128:
+        print("    -> \033[31m[ValueError]: timelimit range must be [2, 128]\033[0m")
+        return False
+
+    if config['partition']['w'] < 2 or config['partition']['w'] > 16:
+        print("    -> \033[31m[ValueError]: w range must be [2, 16]\033[0m")
+        return False
+
+    if config['partition']['h'] < 2 or config['partition']['h'] > 16:
+        print("    -> \033[31m[ValueError]: h range must be [2, 16]\033[0m")
+        return False
+
+    if config['partition']['size'] < 16 or config['partition']['size'] > 256:
+        print("    -> \033[31m[ValueError]: size range must be [16, 256]\033[0m")
+        return False
+
+    if config['partition']['size'] * config['partition']['w'] > 2048:
+        print("    -> \033[31m[ValueError]: size*w range must be [32, 2048]\033[0m")
+        return False
+
+    if config['partition']['size'] * config['partition']['h'] > 2048:
+        print("    -> \033[31m[ValueError]: size*h range must be [32, 2048]\033[0m")
+        return False
+
+    if config['cost']['choice'] < 1 or config['cost']['choice'] > 500:
+        print("    -> \033[31m[ValueError]: choice range must be [1, 500]\033[0m")
+        return False
+
+    if config['cost']['repl'] < 1 or config['cost']['repl'] > 500:
+        print("    -> \033[31m[ValueError]: repl range must be [1, 500]\033[0m")
+        return False
+
     return True
 
 
 def fill_config_value(config):
-    if not 'random_state' in config:
+    if 'random_state' not in config:
         config['random_state'] = random.randint(0, 100000000)
     random.seed(config['random_state'])
 
-    if not 'mode' in config:
+    if 'mode' not in config:
         config['mode'] = 'resize'
 
-    if not 'timelimit' in config:
+    if 'timelimit' not in config:
         config['timelimit'] = random.randint(300, 1200)
 
-    if not 'selectable_times' in config:
+    if 'selectable_times' not in config:
         config['selectable_times'] = random.randint(2, 128)
 
-    if not 'partition' in config:
+    if 'partition' not in config:
         config['partition'] = dict()
 
-    if not 'h' in config['partition']:
+    if 'h' not in config['partition']:
         config['partition']['h'] = random.randint(2, 16)
 
-    if not 'w' in config['partition']:
+    if 'w' not in config['partition']:
         config['partition']['w'] = random.randint(2, 16)
 
-    if not 'size' in config['partition']: 
-        config['partition']['size'] = random.randint(16, 256)
+    if 'size' not in config['partition']:
+        if isinstance(config['partition']['w'], int) and isinstance(config['partition']['h'], int):
+            config['partition']['size'] = random.randint(16, min(256, int(2048 / max(config['partition']['w'], config['partition']['h']))))
+        else:
+            config['partition']['size'] = random.randint(16, 256)
 
-    if not 'cost' in config:
+    if 'cost' not in config:
         config['cost'] = dict()
 
-    if not 'choice' in config['cost']:
+    if 'choice' not in config['cost']:
         config['cost']['choice'] = random.randint(1, 500)
 
-    if not 'repl' in config['cost']:
+    if 'repl' not in config['cost']:
         config['cost']['repl'] = random.randint(1, 100)
 
 
@@ -200,22 +244,50 @@ def add_info_by_comment(path, config):
         f.writelines(img)
 
 
+def shuffle_img(img, config):
+    random.seed(config['random_state'])
+    par = config['partition']
+    par_size = par['size']
+    par_w = par['w']
+    par_h = par['h']
+
+    order = list(range(par_h*par_w))
+    random.shuffle(order)
+
+    split_imgs = []
+    for y in range(par_h):
+        for x in range(par_w):
+            split_imgs.append(img.crop((x*par_size, y*par_size, (x+1)*par_size, (y+1)*par_size)))
+
+    for y in range(par_h):
+        for x in range(par_w):
+            idx = y*par_w + x
+            img.paste(split_imgs[order[idx]], (x*par_size, y*par_size))
+
+    shuffle_log = np.zeros(par_h*par_w, object)
+    for y in range(par_h):
+        for x in range(par_w):
+            idx = y*par_w + x
+            shuffle_log[order[idx]] = '{:X}{:X}'.format(x, y) #(format(x, 'x'), format(y, 'x'))
+
+    shuffle_log = shuffle_log.reshape(par_h, par_w)
+    return shuffle_log
+
+
 def create_img_for_test(testcase_name, config):
-    print('[' + testcase_name + '] creating image for test')
+    print('[' + testcase_name + '] creating image and answer for test')
 
     fill_config_value(config)
-    if not check_config_value(config):
-        return
+    if not validate_config_value(config):
+        return False
 
     org_name = config['name']
-    name = org_name + '.ppm'
-
-    in_path = IMG_DIR + '/' + name
+    in_path = IMG_DIR + '/' + org_name + '.ppm'
 
     # 存在しなければreturn
     if not os.path.isfile(in_path):
         print('    -> \033[31m[FileNotFoundError]: No such image: {}\033[0m'.format(org_name))
-        return
+        return False
 
     HASH = hashlib.md5(toml.dumps(config).encode('utf-8')).hexdigest()
     out_path = DATA_DIR + '/' + HASH
@@ -232,19 +304,25 @@ def create_img_for_test(testcase_name, config):
     if config['mode'] == 'crop':
         img = img.crop((0, 0, w_size, h_size))
 
+    shuffle_log = shuffle_img(img, config)
+
     if not os.path.isdir(out_path):
         os.mkdir(out_path)
-    img_path = out_path + '/' + name
 
+    img_path = out_path + '/prob.ppm'
     img.save(img_path)
     add_info_by_comment(img_path, config)
+
+    ans_path = out_path + '/ans.txt'
+    with open(ans_path, mode='w') as f:
+        f.write('\n'.join( map(lambda x: ' '.join(x), shuffle_log) ))
 
     print('    -> \033[32mcreated\033[0m')
     return True
 
 
 def run_test(path):
-    print('checking toml file: ' + path)
+    print('\nchecking toml file: ' + path)
     
     try:
         testcases = toml.load(open(args['PATH'][0]))
@@ -252,23 +330,25 @@ def run_test(path):
         print('    -> \033[31m[{}]: {}\033[0m'.format(sys.exc_info()[0].__name__, sys.exc_info()[1]))
         return False
         
-    print('    -> \033[32mpassed\033[0m')
-    print('testing with ' + path)
+    print('    -> \033[32mpassed\033[0m\n')
+    print('testing with ' + path + '\n')
     for testcase_name, config in testcases.items():
-        create_img_for_test(testcase_name, config)
+        print('[' + testcase_name + '] start test')
 
+        if not create_img_for_test(testcase_name, config):
+            print('\033[31m[' + testcase_name + '] failed\033[0m\n')
 
+        print('[' + testcase_name + '] \033[32mpassed\033[0m\n')
+
+    return True
 
 
 if __name__ == '__main__':
     args = docopt(__doc__)
-    print(args)
     if args['run']:
-        print('run')
         run_test(args['PATH'][0])
 
     elif args['images']:
-        print('images')
 
         if args['--list']:
             for i in map((lambda filename: os.path.splitext(filename)[0]), os.listdir(IMG_DIR)):
