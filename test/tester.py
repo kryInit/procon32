@@ -189,6 +189,7 @@ def validate_config_value(config):
 
 def fill_config_value(config):
     if 'random_state' not in config:
+        random.seed()
         config['random_state'] = random.randint(0, 100000000)
     random.seed(config['random_state'])
 
@@ -244,7 +245,7 @@ def add_info_by_comment(path, config):
         f.writelines(img)
 
 
-def shuffle_img(img, config):
+def shuffle_and_rotate_img(img, config):
     random.seed(config['random_state'])
     par = config['partition']
     par_size = par['size']
@@ -259,22 +260,28 @@ def shuffle_img(img, config):
         for x in range(par_w):
             split_imgs.append(img.crop((x*par_size, y*par_size, (x+1)*par_size, (y+1)*par_size)))
 
+    rotate_log = []
+
     for y in range(par_h):
         for x in range(par_w):
             idx = y*par_w + x
-            img.paste(split_imgs[order[idx]], (x*par_size, y*par_size))
+            direction = random.randint(0,3)
+            if y == 0 and x == 0:
+                direction = 0
+            rotate_log.append(direction)
+            img.paste(split_imgs[order[idx]].rotate(direction*90), (x*par_size, y*par_size))
 
     shuffle_log = np.zeros(par_h*par_w, object)
     for y in range(par_h):
         for x in range(par_w):
             idx = y*par_w + x
-            shuffle_log[order[idx]] = '{:X}{:X}'.format(x, y) #(format(x, 'x'), format(y, 'x'))
+            shuffle_log[order[idx]] = '{:X}{:X}'.format(x, y)
 
     shuffle_log = shuffle_log.reshape(par_h, par_w)
-    return shuffle_log
+    return shuffle_log, rotate_log
 
 
-def create_img_for_test(testcase_name, config):
+def create_img_and_ans_for_test(testcase_name, config):
     print('[' + testcase_name + '] creating image and answer for test')
 
     fill_config_value(config)
@@ -304,7 +311,7 @@ def create_img_for_test(testcase_name, config):
     if config['mode'] == 'crop':
         img = img.crop((0, 0, w_size, h_size))
 
-    shuffle_log = shuffle_img(img, config)
+    shuffle_log, rotate_log = shuffle_and_rotate_img(img, config)
 
     if not os.path.isdir(out_path):
         os.mkdir(out_path)
@@ -313,9 +320,11 @@ def create_img_for_test(testcase_name, config):
     img.save(img_path)
     add_info_by_comment(img_path, config)
 
-    ans_path = out_path + '/ans.txt'
+    ans_path = out_path + '/true_ans.txt'
     with open(ans_path, mode='w') as f:
-        f.write('\n'.join( map(lambda x: ' '.join(x), shuffle_log) ))
+        f.writelines(map(str, rotate_log))
+        f.write('\n')
+        f.write('\n'.join(map(lambda x: ' '.join(x), shuffle_log) ))
 
     print('    -> \033[32mcreated\033[0m')
     return True
@@ -335,7 +344,7 @@ def run_test(path):
     for testcase_name, config in testcases.items():
         print('[' + testcase_name + '] start test')
 
-        if not create_img_for_test(testcase_name, config):
+        if not create_img_and_ans_for_test(testcase_name, config):
             print('\033[31m[' + testcase_name + '] failed\033[0m\n')
 
         print('[' + testcase_name + '] \033[32mpassed\033[0m\n')
