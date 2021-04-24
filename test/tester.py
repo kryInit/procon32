@@ -112,19 +112,19 @@ def validate_config_value(config):
         print("    -> \033[31m[ValueError]: selectable_tiems must be int\033[0m")
         return False
 
-    if not isinstance(config['partition'], dict):
-        print("    -> \033[31m[ValueError]: partition must be dictionary\033[0m")
+    if not isinstance(config['divide'], dict):
+        print("    -> \033[31m[ValueError]: divide must be dictionary\033[0m")
         return False
 
-    if not isinstance(config['partition']['size'], int):
+    if not isinstance(config['divide']['size'], int):
         print("    -> \033[31m[ValueError]: size must be int\033[0m")
         return False
 
-    if not isinstance(config['partition']['h'], int):
+    if not isinstance(config['divide']['h'], int):
         print("    -> \033[31m[ValueError]: h must be int\033[0m")
         return False
 
-    if not isinstance(config['partition']['w'], int):
+    if not isinstance(config['divide']['w'], int):
         print("    -> \033[31m[ValueError]: w must be int\033[0m")
         return False
 
@@ -156,23 +156,23 @@ def validate_config_value(config):
         print("    -> \033[31m[ValueError]: timelimit range must be [2, 128]\033[0m")
         return False
 
-    if config['partition']['w'] < 2 or config['partition']['w'] > 16:
+    if config['divide']['w'] < 2 or config['divide']['w'] > 16:
         print("    -> \033[31m[ValueError]: w range must be [2, 16]\033[0m")
         return False
 
-    if config['partition']['h'] < 2 or config['partition']['h'] > 16:
+    if config['divide']['h'] < 2 or config['divide']['h'] > 16:
         print("    -> \033[31m[ValueError]: h range must be [2, 16]\033[0m")
         return False
 
-    if config['partition']['size'] < 16 or config['partition']['size'] > 256:
+    if config['divide']['size'] < 16 or config['divide']['size'] > 256:
         print("    -> \033[31m[ValueError]: size range must be [16, 256]\033[0m")
         return False
 
-    if config['partition']['size'] * config['partition']['w'] > 2048:
+    if config['divide']['size'] * config['divide']['w'] > 2048:
         print("    -> \033[31m[ValueError]: size*w range must be [32, 2048]\033[0m")
         return False
 
-    if config['partition']['size'] * config['partition']['h'] > 2048:
+    if config['divide']['size'] * config['divide']['h'] > 2048:
         print("    -> \033[31m[ValueError]: size*h range must be [32, 2048]\033[0m")
         return False
 
@@ -202,20 +202,20 @@ def fill_config_value(config):
     if 'selectable_times' not in config:
         config['selectable_times'] = random.randint(2, 128)
 
-    if 'partition' not in config:
-        config['partition'] = dict()
+    if 'divide' not in config:
+        config['divide'] = dict()
 
-    if 'h' not in config['partition']:
-        config['partition']['h'] = random.randint(2, 16)
+    if 'h' not in config['divide']:
+        config['divide']['h'] = random.randint(2, 16)
 
-    if 'w' not in config['partition']:
-        config['partition']['w'] = random.randint(2, 16)
+    if 'w' not in config['divide']:
+        config['divide']['w'] = random.randint(2, 16)
 
-    if 'size' not in config['partition']:
-        if isinstance(config['partition']['w'], int) and isinstance(config['partition']['h'], int):
-            config['partition']['size'] = random.randint(16, min(256, int(2048 / max(config['partition']['w'], config['partition']['h']))))
+    if 'size' not in config['divide']:
+        if isinstance(config['divide']['w'], int) and isinstance(config['divide']['h'], int):
+            config['divide']['size'] = random.randint(16, min(256, int(2048 / max(config['divide']['w'], config['divide']['h']))))
         else:
-            config['partition']['size'] = random.randint(16, 256)
+            config['divide']['size'] = random.randint(16, 256)
 
     if 'cost' not in config:
         config['cost'] = dict()
@@ -231,13 +231,13 @@ def add_info_by_comment(path, config):
     with open(path, mode='rb') as f:
         img = f.readlines()
 
-    par = config['partition']
+    div = config['divide']
 
     cost = config['cost']
     choice_cost = cost['choice']
     repl_cost = cost['repl']
 
-    img.insert(1, ('# ' + str(par['w']) + ' ' + str(par['h']) + '\n').encode())
+    img.insert(1, ('# ' + str(div['w']) + ' ' + str(div['h']) + '\n').encode())
     img.insert(2, ('# ' + str(config['selectable_times']) + '\n').encode())
     img.insert(3, ('# ' + str(choice_cost) + ' ' + str(repl_cost) + '\n').encode())
 
@@ -247,37 +247,37 @@ def add_info_by_comment(path, config):
 
 def shuffle_and_rotate_img(img, config):
     random.seed(config['random_state'])
-    par = config['partition']
-    par_size = par['size']
-    par_w = par['w']
-    par_h = par['h']
+    div = config['divide']
+    div_size = div['size']
+    div_w = div['w']
+    div_h = div['h']
 
-    order = list(range(par_h*par_w))
+    order = list(range(div_h*div_w))
     random.shuffle(order)
 
     split_imgs = []
-    for y in range(par_h):
-        for x in range(par_w):
-            split_imgs.append(img.crop((x*par_size, y*par_size, (x+1)*par_size, (y+1)*par_size)))
+    for y in range(div_h):
+        for x in range(div_w):
+            split_imgs.append(img.crop((x*div_size, y*div_size, (x+1)*div_size, (y+1)*div_size)))
 
     rotate_log = []
 
-    for y in range(par_h):
-        for x in range(par_w):
-            idx = y*par_w + x
+    for y in range(div_h):
+        for x in range(div_w):
+            idx = y*div_w + x
             direction = random.randint(0,3)
             if y == 0 and x == 0:
                 direction = 0
             rotate_log.append(direction)
-            img.paste(split_imgs[order[idx]].rotate(direction*90), (x*par_size, y*par_size))
+            img.paste(split_imgs[order[idx]].rotate(direction*90), (x*div_size, y*div_size))
 
-    shuffle_log = np.zeros(par_h*par_w, object)
-    for y in range(par_h):
-        for x in range(par_w):
-            idx = y*par_w + x
+    shuffle_log = np.zeros(div_h*div_w, object)
+    for y in range(div_h):
+        for x in range(div_w):
+            idx = y*div_w + x
             shuffle_log[order[idx]] = '{:X}{:X}'.format(x, y)
 
-    shuffle_log = shuffle_log.reshape(par_h, par_w)
+    shuffle_log = shuffle_log.reshape(div_h, div_w)
     return shuffle_log, rotate_log
 
 
@@ -301,9 +301,9 @@ def create_img_and_ans_for_test(testcase_name, config):
 
     img = Image.open(in_path)
 
-    par = config['partition']
-    w_size = par['size'] * par['w']
-    h_size = par['size'] * par['h']
+    div = config['divide']
+    w_size = div['size'] * div['w']
+    h_size = div['size'] * div['h']
 
     if config['mode'] == 'resize':
         img = img.resize((w_size, h_size))
