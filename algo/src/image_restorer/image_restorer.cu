@@ -1,4 +1,5 @@
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
+#include <vec.hpp>
 
 #define CHECK(call) {                                                      \
     const cudaError_t error = call;                                        \
@@ -12,152 +13,6 @@
 using namespace std;
 
 #define rep(i,n) for(int i=0; i < static_cast<int>(n); ++i)
-
-template<class T = int>
-struct Vec2 {
-    T x, y;
-
-    template<class S> inline Vec2& operator =(const Vec2<S>& other) {
-        this->x = other.x;
-        this->y = other.y;
-        return *this;
-    }
-    template<class S> inline bool operator<(const Vec2<S>& another) const {
-        return x == another.x ? y < another.y : x < another.x;
-    }
-    template<class S> inline bool operator==(const Vec2<S>& another) const {
-        return x == another.x && y == another.y;
-    }
-    template<class S> inline bool operator!=(const Vec2<S>& another) const {
-        return x != another.x || y != another.y;
-    }
-    template<class S> inline Vec2 operator+(const Vec2<S>& other) const {
-        return { x + other.x, y + other.y };
-    }
-    template<class S> inline Vec2& operator +=(const Vec2<S>& other) {
-        *this = *this+other;
-        return *this;
-    }
-    template<class S> inline Vec2 operator -(const Vec2<S>& other) const {
-        return { x - other.x, y - other.y };
-    }
-    template<class S> inline Vec2& operator -=(const Vec2<S>& other) {
-        *this = *this - other;
-        return *this;
-    }
-    template<class S> inline Vec2 operator *(S s) const {
-        return { x*s, y*s };
-    }
-    template<class S> inline Vec2& operator *=(S s) {
-        *this = *this*s;
-        return *this;
-    }
-    template<class S> inline Vec2 operator /(S s) const {
-        return { x/s, y/s };
-    }
-    template<class S> inline Vec2& operator /=(S s) {
-        *this = *this/s;
-        return *this;
-    }
-
-
-    Vec2() : x(0), y(0) {};
-    template<class N, class M> Vec2(N _x, M _y) : x(static_cast<T>(_x)), y(static_cast<T>(_y)) {}
-
-    void dump() const { cout << '(' << x << ", " << y << ')' << endl; }
-};
-
-template<class T>
-std::ostream &operator<<(std::ostream &out, const Vec2<T> &v) {
-    out << '(' << v.x << ", " << v.y << ')';
-    return out;
-}
-
-template<class T = int>
-struct Vec3 {
-    union {
-        struct { T x,y,z; };
-        struct { T r,g,b; };
-    };
-
-    template<class S> inline Vec3& operator =(const Vec3<S>& other) {
-        this->x = other.x;
-        this->y = other.y;
-        this->z = other.z;
-        return *this;
-    }
-    template<class S> inline bool operator<(const Vec3<S>& another) const {
-        return x == another.x ? (y == another.y ? z < another.z : y < another.y) : x < another.x;
-    }
-    template<class S> inline bool operator==(const Vec3<S>& another) const {
-        return x == another.x && y == another.y && z == another.z;
-    }
-    template<class S> inline bool operator!=(const Vec3<S>& another) const {
-        return x != another.x || y != another.y || z != another.z;
-    }
-    template<class S> inline Vec3 operator+(const Vec3<S>& other) const {
-        return { x + other.x, y + other.y, z + other.z };
-    }
-    template<class S> inline Vec3& operator +=(const Vec3<S>& other) {
-        *this = *this+other;
-        return *this;
-    }
-    template<class S> inline Vec3 operator -(const Vec3<S>& other) const {
-        return { x - other.x, y - other.y, z - other.z };
-    }
-    template<class S> inline Vec3& operator -=(const Vec3<S>& other) {
-        *this = *this-other;
-        return *this;
-    }
-    template<class S> inline Vec3 operator *(S s) const {
-        return { x*s, y*s, z*s };
-    }
-    template<class S> inline Vec3& operator *=(S s) {
-        *this = *this*s;
-        return *this;
-    }
-    template<class S> inline Vec3 operator /(S s) const {
-        return { x/s, y/s, z/s };
-    }
-    template<class S> inline Vec3& operator /=(S s) {
-        *this = *this/s;
-        return *this;
-    }
-
-    Vec3() : x(), y(), z() {}
-    template<class N, class M, class L> Vec3(N _x, M _y, L _z) : x(static_cast<T>(_x)), y(static_cast<T>(_y)), z(static_cast<T>(_z)) {}
-
-    void dump() { cout << '(' << x << ", " << y << ", " << z << ')' << endl; }
-    double mag() {
-        auto X = static_cast<double>(x);
-        auto Y = static_cast<double>(y);
-        auto Z = static_cast<double>(z);
-        return sqrt(X*X+Y*Y+Z*Z);
-    }
-    template<class S>
-    Vec3<T> mul_each_other(Vec3<S>& other) const {
-        return { x*static_cast<T>(other.x), y*static_cast<T>(other.y), z*static_cast<T>(other.z) };
-    }
-    T sum() const { return x + y + z; }
-};
-
-template<class T>
-std::ostream &operator<<(std::ostream &out, const Vec3<T> &v) {
-    out << '(' << v.x << ", " << v.y << ", " << v.z << ')';
-    return out;
-}
-
-using RGB = Vec3<unsigned char>;
-
-template <>
-void RGB::dump() {
-    cout << static_cast<unsigned>(r) << ", " << static_cast<unsigned>(g) << ", " << static_cast<unsigned>(b) << endl;
-}
-
-ostream& operator <<(ostream& os, const RGB& rgb) {
-    os << '(' << static_cast<unsigned>(rgb.r) << ", " << static_cast<unsigned>(rgb.g) << ", " << static_cast<unsigned>(rgb.b)<< ')';
-    return os;
-}
 
 class ImageFragment {
     RGB *img_data;
@@ -289,7 +144,7 @@ public:
     AdjacencyEvaluator() : HALF_FILTER_SIZE(4), W_FOR_VAR(2) {}
     AdjacencyEvaluator(unsigned int half_filter_size, unsigned int w_for_var) : HALF_FILTER_SIZE(half_filter_size), W_FOR_VAR(w_for_var) {}
 
-    void calc_similarity_simply(const Image &img) {
+    void calc_similarity_simply(const Image &img, double* similarity) {
         const unsigned int ave_conv_result_size = img.frag_num()*4*img.FRAG_SIZE*W_FOR_VAR;
         auto *ave_conv_result = (Vec3<float>*)malloc(ave_conv_result_size*sizeof(Vec3<float>));
         img.simple_ave_conv(HALF_FILTER_SIZE, W_FOR_VAR, ave_conv_result);
@@ -298,8 +153,7 @@ public:
             cout << *(ave_conv_result + (i*img.DIV_NUM.x + j)*4*img.FRAG_SIZE*W_FOR_VAR) << endl;
         }
 
-        const unsigned int similarity_size = img.frag_num()*4*img.frag_num()*4;
-        auto similarity = (double*)malloc(similarity_size*sizeof(double));
+        // Σ(x_i - x_ave)^2 = ( Σ(x_i^2) - ((Σx_i)^2)/N ) / N
         auto sum_memo = (Vec3<double>*)malloc(img.FRAG_SIZE*sizeof(Vec3<double>));
         auto s_sum_memo = (Vec3<double>*)malloc(img.FRAG_SIZE*sizeof(Vec3<double>));
         double *now_ptr = similarity;
@@ -370,8 +224,8 @@ public:
                 }
             }
         }
-//        const unsigned int offset = (img.DIV_NUM.y*4 + 4);
-        const unsigned int offset = 0;
+        const unsigned int offset = (2*img.DIV_NUM.x*4 + 1*4 + 3)*img.frag_num()*4;
+//        const unsigned int offset = 0;
         rep(i,img.DIV_NUM.y) {
             rep(j,img.DIV_NUM.x) {
                 cout << "(";
@@ -396,7 +250,7 @@ int main(int argc, char *argv[]) {
     unsigned int h_div, w_div, frag_size;
     {
         unsigned int h_pix, w_pix, _;
-        ifstream ifs("../prob.txt");
+        ifstream ifs(string(argv[1]) + "/prob.txt");
         ifs >> w_div >> h_div;
         ifs >> _ >> _ >> _;
         ifs >> w_pix >> h_pix;
@@ -415,8 +269,10 @@ int main(int argc, char *argv[]) {
     kr<<<1,1>>>(rgbs_cuda, h_div*w_div*frag_size*frag_size-1);
     cudaFree(rgbs_cuda);
 
-    AdjacencyEvaluator ae(4, 4);
-    ae.calc_similarity_simply(img);
+    const unsigned int similarity_size = img.frag_num()*4*img.frag_num()*4;
+    auto similarity = (double*)malloc(similarity_size*sizeof(double));
+    AdjacencyEvaluator ae(2, 2);
+    ae.calc_similarity_simply(img, similarity);
 }
 
 __global__ void kr(RGB *rgbs, int a) {

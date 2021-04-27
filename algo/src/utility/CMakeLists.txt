@@ -1,0 +1,3 @@
+add_subdirectory(random)
+add_subdirectory(time)
+add_subdirectory(general_class)
