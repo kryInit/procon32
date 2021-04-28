@@ -1,5 +1,6 @@
 #include <bits/stdc++.h>
 #include <vec.hpp>
+#include <time_manager.hpp>
 
 #define CHECK(call) {                                                      \
     const cudaError_t error = call;                                        \
@@ -146,7 +147,7 @@ public:
 
     void calc_similarity_simply(const Image &img, double* similarity) {
         const unsigned int ave_conv_result_size = img.frag_num()*4*img.FRAG_SIZE*W_FOR_VAR;
-        auto *ave_conv_result = (Vec3<float>*)malloc(ave_conv_result_size*sizeof(Vec3<float>));
+        auto ave_conv_result = (Vec3<float>*)malloc(ave_conv_result_size*sizeof(Vec3<float>));
         img.simple_ave_conv(HALF_FILTER_SIZE, W_FOR_VAR, ave_conv_result);
 
         rep(i,img.DIV_NUM.y) rep(j,img.DIV_NUM.x) {
@@ -235,6 +236,10 @@ public:
             cout << endl;
         }
         cout << endl;
+
+        free(ave_conv_result);
+        free(sum_memo);
+        free(s_sum_memo);
     }
 };
 
@@ -273,6 +278,8 @@ int main(int argc, char *argv[]) {
     auto similarity = (double*)malloc(similarity_size*sizeof(double));
     AdjacencyEvaluator ae(2, 2);
     ae.calc_similarity_simply(img, similarity);
+
+    free(similarity);
 }
 
 __global__ void kr(RGB *rgbs, int a) {

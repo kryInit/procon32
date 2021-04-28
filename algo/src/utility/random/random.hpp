@@ -5,11 +5,11 @@ namespace Random {
 
     uint seed[4] = {1,2,3,4};
 
-    inline void init_rand_seed(uint s);
-    inline uint rand_uint();
-    inline double rand_prob();
-    inline uint rand_range(uint r);
-    inline int rand_range(int l, int r);
-    inline uint simple_exp_rand(uint r);
-    inline uint exp_rand(uint r, double a);
+    void init_rand_seed(uint s);
+    uint rand_uint();
+    double rand_prob();
+    uint rand_range(uint r);
+    int rand_range(int l, int r);
+    uint simple_exp_rand(uint r);
+    uint exp_rand(uint r, double a);
 }

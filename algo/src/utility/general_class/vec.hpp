@@ -6,45 +6,45 @@ template<class T = int>
 struct Vec2 {
     T x, y;
 
-    template<class S> inline Vec2& operator =(const Vec2<S>& other) {
+    template<class S> Vec2& operator =(const Vec2<S>& other) {
         this->x = other.x;
         this->y = other.y;
         return *this;
     }
-    template<class S> inline bool operator<(const Vec2<S>& another) const {
+    template<class S> bool operator<(const Vec2<S>& another) const {
         return x == another.x ? y < another.y : x < another.x;
     }
-    template<class S> inline bool operator==(const Vec2<S>& another) const {
+    template<class S> bool operator==(const Vec2<S>& another) const {
         return x == another.x && y == another.y;
     }
-    template<class S> inline bool operator!=(const Vec2<S>& another) const {
+    template<class S> bool operator!=(const Vec2<S>& another) const {
         return x != another.x || y != another.y;
     }
-    template<class S> inline Vec2 operator+(const Vec2<S>& other) const {
+    template<class S> Vec2 operator+(const Vec2<S>& other) const {
         return { x + other.x, y + other.y };
     }
-    template<class S> inline Vec2& operator +=(const Vec2<S>& other) {
+    template<class S> Vec2& operator +=(const Vec2<S>& other) {
         *this = *this+other;
         return *this;
     }
-    template<class S> inline Vec2 operator -(const Vec2<S>& other) const {
+    template<class S> Vec2 operator -(const Vec2<S>& other) const {
         return { x - other.x, y - other.y };
     }
-    template<class S> inline Vec2& operator -=(const Vec2<S>& other) {
+    template<class S> Vec2& operator -=(const Vec2<S>& other) {
         *this = *this - other;
         return *this;
     }
-    template<class S> inline Vec2 operator *(S s) const {
+    template<class S> Vec2 operator *(S s) const {
         return { x*s, y*s };
     }
-    template<class S> inline Vec2& operator *=(S s) {
+    template<class S> Vec2& operator *=(S s) {
         *this = *this*s;
         return *this;
     }
-    template<class S> inline Vec2 operator /(S s) const {
+    template<class S> Vec2 operator /(S s) const {
         return { x/s, y/s };
     }
-    template<class S> inline Vec2& operator /=(S s) {
+    template<class S> Vec2& operator /=(S s) {
         *this = *this/s;
         return *this;
     }
@@ -62,46 +62,46 @@ struct Vec3 {
         struct { T r,g,b; };
     };
 
-    template<class S> inline Vec3& operator =(const Vec3<S>& other) {
+    template<class S> Vec3& operator =(const Vec3<S>& other) {
         this->x = other.x;
         this->y = other.y;
         this->z = other.z;
         return *this;
     }
-    template<class S> inline bool operator<(const Vec3<S>& another) const {
+    template<class S> bool operator<(const Vec3<S>& another) const {
         return x == another.x ? (y == another.y ? z < another.z : y < another.y) : x < another.x;
     }
-    template<class S> inline bool operator==(const Vec3<S>& another) const {
+    template<class S> bool operator==(const Vec3<S>& another) const {
         return x == another.x && y == another.y && z == another.z;
     }
-    template<class S> inline bool operator!=(const Vec3<S>& another) const {
+    template<class S> bool operator!=(const Vec3<S>& another) const {
         return x != another.x || y != another.y || z != another.z;
     }
-    template<class S> inline Vec3 operator+(const Vec3<S>& other) const {
+    template<class S> Vec3 operator+(const Vec3<S>& other) const {
         return { x + other.x, y + other.y, z + other.z };
     }
-    template<class S> inline Vec3& operator +=(const Vec3<S>& other) {
+    template<class S> Vec3& operator +=(const Vec3<S>& other) {
         *this = *this+other;
         return *this;
     }
-    template<class S> inline Vec3 operator -(const Vec3<S>& other) const {
+    template<class S> Vec3 operator -(const Vec3<S>& other) const {
         return { x - other.x, y - other.y, z - other.z };
     }
-    template<class S> inline Vec3& operator -=(const Vec3<S>& other) {
+    template<class S> Vec3& operator -=(const Vec3<S>& other) {
         *this = *this-other;
         return *this;
     }
-    template<class S> inline Vec3 operator *(S s) const {
+    template<class S> Vec3 operator *(S s) const {
         return { x*s, y*s, z*s };
     }
-    template<class S> inline Vec3& operator *=(S s) {
+    template<class S> Vec3& operator *=(S s) {
         *this = *this*s;
         return *this;
     }
-    template<class S> inline Vec3 operator /(S s) const {
+    template<class S> Vec3 operator /(S s) const {
         return { x/s, y/s, z/s };
     }
-    template<class S> inline Vec3& operator /=(S s) {
+    template<class S> Vec3& operator /=(S s) {
         *this = *this/s;
         return *this;
     }

@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(procon32 LANGUAGES CXX CUDA)
 
-find_package(OpenMP)
-
-add_subdirectory(utility)
-add_subdirectory(image_restorer)
-add_executable(tmp tmp.cpp)
-
 #set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG -Xcompiler=\"-O3 -DNDEBUG\"")
 set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -O3 -DDEBUG -Xcompiler=\"-g -O3 -DDEBUG\"")
@@ -23,3 +17,8 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
+find_package(OpenMP)
+
+add_subdirectory(utility)
+add_subdirectory(image_restorer)
+add_executable(tmp tmp.cpp)
