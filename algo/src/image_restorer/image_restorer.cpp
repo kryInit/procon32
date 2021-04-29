@@ -2,20 +2,6 @@
 #include <vec.hpp>
 #include <time_manager.hpp>
 
-#define CHECK(call) {                                                      \
-    const cudaError_t error = call;                                        \
-    if (error != cudaSuccess) {                                            \
-        printf("Error: %s%d, ", __FILE__, __LINE__);                       \
-        printf("code:%d, reason: %s\n", error, cudaGetErrorString(error)); \
-        exit(1);                                                           \
-    }                                                                      \
-}
-#ifdef __CUDACC__
-#define CUDA_CALLABLE_MEMBER __host__ __device__
-#else
-#define CUDA_CALLABLE_MEMBER
-#endif
-
 using namespace std;
 
 #define rep(i,n) for(int i=0; i < static_cast<int>(n); ++i)
@@ -331,12 +317,12 @@ public:
             int now = 0;
             int max_div = max(div_num.x, div_num.y);
             rep(i, max_div) {
-                if (i < div_num.x) rep(j, min(i, div_num.y)) {
+                if (i < div_num.x) rep(j, min(i, (int)div_num.y)) {
                     order_table[j][i] = now;
                     rev_order_table[now] = Vec2<unsigned int>(i, j);
                     now++;
                 }
-                if (i < div_num.y) rep(j,min(i+1, div_num.x)) {
+                if (i < div_num.y) rep(j,min(i+1, (int)div_num.x)) {
                     order_table[i][j] = now;
                     rev_order_table[now] = Vec2<unsigned int>(j, i);
                     now++;
@@ -449,25 +435,6 @@ ImageState solver(const Image& img, const Settings& settings) {
 }
 
 int main(int argc, char *argv[]) {
-    int h = 2048, w = 2048;
-    stopwatch sw; sw.start();
-    RGB *tmp = new RGB[h*w];
-    sw.print_ms(); sw.start();
-    RGB *tmp_for_cuda;
-    cudaMalloc(&tmp_for_cuda, h*w*sizeof(RGB));
-    sw.print_ms(); sw.start();
-
-//    cudaMemcpy(tmp_for_cuda, tmp, h*w*sizeof(RGB), cudaMemcpyHostToDevice);
-    int block = h*w / 256 / 128;
-    for (int i=0; i<256; ++i) {
-        cudaMemcpy(tmp_for_cuda + i*block, tmp + i*block, block*sizeof(RGB), cudaMemcpyHostToDevice);
-    }
-    sw.print_us(); sw.start();
-    cudaFree(tmp_for_cuda);
-    sw.print_us();
-
-    delete[] tmp;
-
 #pragma omp parallel
     {
         std::cout << "Hello World!\n";
@@ -487,6 +454,4 @@ int main(int argc, char *argv[]) {
 //    img.dump();
     img.dump_perimeter(Vec2<int>(0,0));
     solver<SimpleAdjacencyEvaluator, SimpleSolver>(img, settings);
-
-    CHECK(cudaDeviceSynchronize())
 }

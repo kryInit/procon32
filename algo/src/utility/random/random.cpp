@@ -2,6 +2,8 @@
 #include <cmath>
 #include <climits>
 
+using uint = unsigned int;
+
 uint Random::rand_uint() {
     uint t = (seed[0]^(seed[0]<<11U));
     seed[0]=seed[1];
