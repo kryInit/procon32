@@ -48,6 +48,10 @@ struct Vec2 {
         *this = *this/s;
         return *this;
     }
+    template<class S> explicit operator Vec2<S>() const {
+        return Vec2<S>(x, y);
+    }
+
 
     Vec2() : x(0), y(0) {};
     template<class N, class M> Vec2(N _x, M _y) : x(static_cast<T>(_x)), y(static_cast<T>(_y)) {}
@@ -104,6 +108,9 @@ struct Vec3 {
     template<class S> Vec3& operator /=(S s) {
         *this = *this/s;
         return *this;
+    }
+    template<class S> explicit operator Vec3<S>() const {
+        return Vec3<S>(x, y, z);
     }
 
     Vec3() : x(), y(), z() {}
