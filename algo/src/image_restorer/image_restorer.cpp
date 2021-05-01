@@ -344,9 +344,17 @@ public:
         }
 
         int now_step = 0;
-        while(tm.is_within_time_limit()) {
+//        while(tm.is_within_time_limit()) {
+        int loop_count = 0;
+        while(true) {
+            loop_count++;
             if (pq[now_step].empty()) {
-                now_step = (now_step+1)%(frag_num-1);
+                if (now_step >= 1) {
+                    vector<ImageState>().swap(storage[now_step-1]);
+                }
+                now_step++;
+                loop_count = 0;
+                cout << now_step << endl;
                 continue;
             }
             double now_cost = pq[now_step].top().first;
@@ -393,7 +401,18 @@ public:
                 storage[now_step+1].push_back(tmp);
             }
 
-            now_step = (now_step+1)%(frag_num-1);
+//            now_step = (now_step+1)%(frag_num-1);
+            if (now_step && loop_count%200 == 0) {
+                if (now_step >= 1) {
+                    vector<ImageState>().swap(storage[now_step-1]);
+                }
+                if (now_step == frag_num-2) break;
+                else {
+                    now_step++;
+                    loop_count = 0;
+                    cout << now_step << endl;
+                }
+            }
         }
 
         rep(i,frag_num) cout << i << ": " << pq[i].size() << endl;
