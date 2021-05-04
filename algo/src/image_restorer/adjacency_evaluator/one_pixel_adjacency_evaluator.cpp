@@ -46,5 +46,4 @@ void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings&
 
     delete[] perimeters;
     delete[] memo;
-    cout << "simple adjacency evaluator" << endl;
 }

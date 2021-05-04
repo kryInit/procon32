@@ -44,23 +44,23 @@ void dump_openmp_info() {
     for(int i=0; i<omp_get_max_threads(); ++i) cout << "hello world " << thread_nums[i] << endl;
 }
 int main(int argc, char *argv[]) {
-    dump_openmp_info();
+//    dump_openmp_info();
 
     string frag_dir_path = string(argv[1]) + "/frags/";
     string settings_path = string(argv[1]) + "/prob.txt";
 
     Settings settings;
     settings.load(settings_path);
-    settings.dump();
+//    settings.dump();
 
     Image img;
     img.load(frag_dir_path, settings);
-    cout << "finish load" << endl;
+//    cout << "finish load" << endl;
 
     Answer ans = solver<OnePixelAdjacencyEvaluator, SideBeamSearchSolver>(img, settings);
     string ans_path = string(argv[1]) + "/ans.txt";
     ofstream ofs(ans_path);
-    ans.dump();
+//    ans.dump();
     ans.dump(ofs);
 }
 

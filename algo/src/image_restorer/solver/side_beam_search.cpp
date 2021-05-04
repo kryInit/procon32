@@ -144,11 +144,11 @@ struct FragmentPair {
     FragmentPair() : adjacency(), l(), r() {}
     FragmentPair(float _adjacency, ImageFragmentState _l, ImageFragmentState _r) : adjacency(_adjacency), l(_l), r(_r) {}
     bool operator<(const FragmentPair& another) const {
-                                                  return adjacency < another.adjacency;
-                                                  }
+        return adjacency < another.adjacency;
+    }
     bool operator>(const FragmentPair& another) const {
-                                                  return another.adjacency < adjacency;
-                                                  }
+        return another.adjacency < adjacency;
+    }
 };
 using v2fp = vector<vector<FragmentPair>>;
 
@@ -301,7 +301,6 @@ vector<ImageState> get_first_sorted_states(const v2fp& ordered_adjacency, const 
             pushed[l_idx][r_idx] = pushed[r_idx][l_idx] = true;
         }
     }
-    cout << "min_adjacency: " << pq.top().adjacency << endl;
     rep(i, MAX_STATE_NUM) {
         FragmentPair tmp = pq.top(); pq.pop();
         ImageState state;
@@ -398,10 +397,6 @@ Answer get_answer(vector<ImageState>& sorted_states) {
 
 Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) {
 //    dump_adjacency_info(adjacency, settings);
-    cout << "solve" << endl;
-    cout << "fragment pair size: " << sizeof(FragmentPair) << endl;
-    cout << "image fragment state size: " << sizeof(ImageFragmentState) << endl;
-    cout << "image state size: " << sizeof(ImageState) << endl;
 
     constexpr unsigned int MAX_STATE_NUM = 128;
 //    constexpr unsigned int MAX_STATE_NUM = 1024;
@@ -417,7 +412,7 @@ Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) 
 
     const unsigned int STEP_NUM = DIV_NUM.y + DIV_NUM.x - 3;
     rep(step, STEP_NUM) {
-        cout << step << " th" << endl;
+//        cout << step << " th" << endl;
 /*
         cout << "\n\n" << "=============================" << endl;
         dump_states(now_states, DIV_NUM, 10);
@@ -427,9 +422,9 @@ Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) 
         cout << "=============================" << "\n\n" << endl;
 */
         auto next_states = generate_next_states(now_states, adjacency, ordered_adjacency, DIV_NUM);
-        cout << "size before remove: " << next_states.size() << endl;
+//        cout << "size before remove: " << next_states.size() << endl;
         remove_duplicate_state(next_states);
-        cout << "size after remove: " << next_states.size() << endl;
+//        cout << "size after remove: " << next_states.size() << endl;
         sort_and_resize_states(next_states, MAX_STATE_NUM);
 //        dump_states(next_states, DIV_NUM, 100);
         now_states = move(next_states);
