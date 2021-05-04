@@ -325,6 +325,7 @@ def create_img_and_ans_for_test(testcase_name, config):
         f.writelines(map(str, rotate_log))
         f.write('\n')
         f.write('\n'.join(map(lambda x: ' '.join(x), shuffle_log) ))
+        f.write('\n')
 
     print('    -> \033[32mcreated\033[0m')
     return True

@@ -134,21 +134,19 @@ struct Vec3 {
 using RGB = Vec3<unsigned char>;
 
 template <>
-void RGB::dump() {
+inline void RGB::dump() {
     std::cout << static_cast<unsigned>(r) << ", " << static_cast<unsigned>(g) << ", " << static_cast<unsigned>(b) << std::endl;
 }
 
-template<class T> std::ostream &operator<<(std::ostream &out, const Vec2<T> &v) {
+template<class T> inline std::ostream &operator<<(std::ostream &out, const Vec2<T> &v) {
     out << '(' << v.x << ", " << v.y << ')';
     return out;
 }
-template<class T> std::ostream &operator<<(std::ostream &out, const Vec3<T> &v) {
+template<class T> inline std::ostream &operator<<(std::ostream &out, const Vec3<T> &v) {
     out << '(' << v.x << ", " << v.y << ", " << v.z << ')';
     return out;
 }
-std::ostream& operator <<(std::ostream& os, const RGB& rgb) {
+inline std::ostream& operator <<(std::ostream& os, const RGB& rgb) {
     os << '(' << static_cast<unsigned>(rgb.r) << ", " << static_cast<unsigned>(rgb.g) << ", " << static_cast<unsigned>(rgb.b)<< ')';
     return os;
 }
-
-
