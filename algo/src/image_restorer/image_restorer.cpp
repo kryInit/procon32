@@ -473,7 +473,7 @@ class SimpleSolver : ISolver {
             const unsigned int dir_offset = get_dir_offset(dir0, dir1);
             for (const auto& fp : ordered_adjacency[idx0]) {
                 if (fp.adjacency >= min_adjacency) break;
-                const unsigned int idx2_adjacent_idx1 = fp.r.orig_idx*4 + (get_side_idx(fp.r, opposite_direction(dir0)) + dir_offset)%4;
+                const unsigned int idx2_adjacent_idx1 = fp.r.orig_idx*4 + (get_side_idx(fp.r, Direction::L) + dir_offset)%4;
                 float tmp_adjacency = fp.adjacency + static_cast<float>(*(adjacency + idx1*N + idx2_adjacent_idx1));
                 if (!placed[fp.r.orig_idx] && min_adjacency > tmp_adjacency) {
                     min_adjacency = tmp_adjacency;
@@ -487,7 +487,7 @@ class SimpleSolver : ISolver {
             const unsigned int dir_offset = get_dir_offset(dir1, dir0);
             for (const auto& fp : ordered_adjacency[idx1]) {
                 if (fp.adjacency >= min_adjacency) break;
-                const unsigned int idx2_adjacent_idx0 = fp.r.orig_idx*4 + (get_side_idx(fp.r, opposite_direction(dir1)) + dir_offset)%4;
+                const unsigned int idx2_adjacent_idx0 = fp.r.orig_idx*4 + (get_side_idx(fp.r, Direction::L) + dir_offset)%4;
                 float tmp_adjacency = fp.adjacency + static_cast<float>(*(adjacency + idx1*N + idx2_adjacent_idx0));
                 if (!placed[fp.r.orig_idx] && min_adjacency > tmp_adjacency) {
                     min_adjacency = tmp_adjacency;
@@ -618,13 +618,14 @@ public:
         const unsigned int STEP_NUM = DIV_NUM.y + DIV_NUM.x - 3;
         rep(step, STEP_NUM) {
             cout << step << " th" << endl;
-//            now_states.front().dump(DIV_NUM);
+/*
             cout << "\n\n" << "=============================" << endl;
             dump_states(now_states, DIV_NUM, 10);
             map<Vec2<unsigned short>, int> m;
             for(const auto& i : now_states) m[i.now_size]++;
             for(const auto& i : m) cout << dec << i.first << " " << i.second << endl;
             cout << "=============================" << "\n\n" << endl;
+*/
             auto next_states = generate_next_states(now_states, adjacency, ordered_adjacency, DIV_NUM);
             cout << "size before remove: " << next_states.size() << endl;
             remove_duplicate_state(next_states);
