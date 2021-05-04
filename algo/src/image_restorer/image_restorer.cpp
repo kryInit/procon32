@@ -488,7 +488,7 @@ class SimpleSolver : ISolver {
             for (const auto& fp : ordered_adjacency[idx1]) {
                 if (fp.adjacency >= min_adjacency) break;
                 const unsigned int idx2_adjacent_idx0 = fp.r.orig_idx*4 + (get_side_idx(fp.r, Direction::L) + dir_offset)%4;
-                float tmp_adjacency = fp.adjacency + static_cast<float>(*(adjacency + idx1*N + idx2_adjacent_idx0));
+                float tmp_adjacency = fp.adjacency + static_cast<float>(*(adjacency + idx0*N + idx2_adjacent_idx0));
                 if (!placed[fp.r.orig_idx] && min_adjacency > tmp_adjacency) {
                     min_adjacency = tmp_adjacency;
                     ImageFragmentState tmp = fp.r;
