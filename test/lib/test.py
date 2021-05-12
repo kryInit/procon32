@@ -192,7 +192,7 @@ def create_testdata(testcase):
     img.save(out_img_path)
     add_info_by_comment(out_img_path, testcase)
 
-    ans_path = out_path + '/true_ans.txt'
+    ans_path = out_path + '/true_original_state.txt'
     with open(ans_path, mode='w') as f:
         f.writelines(map(str, rotate_log))
         f.write('\n')
@@ -213,9 +213,9 @@ def clean_up(testcases):
                 os.remove(out_path+'/'+file_name)
 
 
-def exec_subprocess(process):
-    set_env = "PROJECT_TOP_DIR=" + os.path.abspath(PROJECT_TOP_DIR) + "; "
-    cmd = set_env + ' && '.join(process['run'])
+def exec_subprocess(process, env=""):
+    env += "PROJECT_TOP_DIR=" + os.path.abspath(PROJECT_TOP_DIR) + "; "
+    cmd = env + ' && '.join(process['run'])
     result = subprocess.run(cmd,
                             shell=True,
                             stdout=subprocess.DEVNULL if not process['stdout'] else None,
@@ -224,9 +224,13 @@ def exec_subprocess(process):
         raise ChildProcessError("preprocess failed")
 
 
-def exec_test(config, testcase):
+def exec_test(testcase, process):
     # raise ValueError("ve")
-    pass
+    # exec_subprocess(testcase)
+    hash_val = hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest()
+    prob_dir = DATA_DIR + '/' + hash_val
+    env = "PROB_DIR=" + prob_dir + "; "
+    exec_subprocess(process, env)
 
 
 def append_log(testcases):
@@ -252,12 +256,6 @@ def requirement_test(args):
     print('\nvalidate testcases')
     safety(validate_and_fill_testcases, testcases)
 
-    print('=============================')
-    pprint.pprint(config)
-    print('=============================')
-    pprint.pprint(testcases)
-    print('=============================')
-
     print('\ncreate testdata')
     for test_name, testcase in testcases.items():
         print(f'[{test_name}] ', end='')
@@ -271,17 +269,28 @@ def requirement_test(args):
     print('\nexecute preprocess')
     for preprocess in config['preprocess']:
         name = preprocess['name']
-        if preprocess['stdout']:
+        if preprocess['stdout'] or preprocess['stderr']:
             print(f'[{name}] start')
+        else:
+            print(f'[{name}] ', end='', flush=True)
         safety(exec_subprocess, preprocess)
-        printG('done', prefix=f'[{name}] ')
+        printG('done', prefix=f'[{name}] ' if preprocess['stdout'] or preprocess['stderr'] else '')
+
+    pprint.pprint(testcases)
 
     print('\nexecute test')
     try:
         for test_name, testcase in testcases.items():
             print(f'[{test_name}] start')
-            safety(exec_test, config, testcase, print_prefix='')
-            printG('done', prefix=f'[{test_name}] ')
+            for process in config['test']:
+                process_name = process['name']
+                if process['stdout'] or process['stderr']:
+                    print(f'[{test_name}]::[{process_name}] start')
+                else:
+                    print(f'[{test_name}]::[{process_name}] ', end='', flush=True)
+                safety(exec_test, testcase, process)
+                printG('done', prefix=f'[{test_name}]::[{process_name}] ' if process['stdout'] or process['stderr'] else '')
+            printG('done\n', prefix=f'[{test_name}] ')
     except SystemExit as e:
         failed = True if e.code != 0 else False
         printR('stopped')
@@ -292,10 +301,12 @@ def requirement_test(args):
     print("\nexecute postprocess")
     for postprocess in config['postprocess']:
         name = postprocess['name']
-        if postprocess['stdout']:
+        if postprocess['stdout'] or testcase['stderr']:
             print(f'[{name}] start')
+        else:
+            print(f'[{name}] ', end='', flush=True)
         safety(exec_subprocess, postprocess)
-        printG('done', prefix=f'[{name}] ')
+        printG('done', prefix=f'[{name}] ' if preprocess['stdout'] or preprocess['stderr'] else '')
 
     print('\nclean up')
     safety(clean_up, testcases)
