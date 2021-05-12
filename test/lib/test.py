@@ -3,17 +3,12 @@ import sys
 import toml
 import random
 import pprint
+import hashlib
+import subprocess
+import numpy as np
+from PIL import Image
 from .utility import *
-from .constant import TEST_DIR, IMG_DIR, DATA_DIR
-
-"""
-class MyError(Exception):
-    def __init__(self, message='Empty message'):
-        self.message = message
-
-    def __str__(self):
-        return self.message
-"""
+from .constant import PROJECT_TOP_DIR, TEST_DIR, IMG_DIR, DATA_DIR
 
 
 def validate_and_fill_recursively(data, name, condition):
@@ -73,13 +68,13 @@ def validate_and_fill_config(config):
         }],)
     },)
 
-    config = validate_and_fill_recursively(config, 'config', conditions)
+    return validate_and_fill_recursively(config, 'config', conditions)
 
 
 def validate_and_fill_testcases(testcases):
     conditions = ({
         'name': (str(), None,
-                 lambda n: f": image named {n} is not exists" if not os.path.exists(IMG_DIR+'/'+n+'.ppm') else None),
+                 lambda n: f": image named '{n}' is not exists" if not os.path.exists(IMG_DIR+'/'+n+'.ppm') else None),
         'timelimit': (int(), lambda: random.randint(300, 1200)),
         'mode': (str(), 'resize',
                  lambda m: " must be crop or resize" if m != 'resize' and m != 'crop' else None),
@@ -115,31 +110,122 @@ def validate_and_fill_testcases(testcases):
         testcases[test_name] = validate_and_fill_recursively(testcase, f'testcases[{test_name}]', conditions)
 
 
+def add_info_by_comment(path, testcase):
+    with open(path, mode='rb') as f:
+        img = f.readlines()
+
+    div = testcase['divide']
+
+    cost = testcase['cost']
+    choice_cost = cost['choice']
+    repl_cost = cost['repl']
+
+    img.insert(1, ('# ' + str(div['w']) + ' ' + str(div['h']) + '\n').encode())
+    img.insert(2, ('# ' + str(testcase['selectable_times']) + '\n').encode())
+    img.insert(3, ('# ' + str(choice_cost) + ' ' + str(repl_cost) + '\n').encode())
+
+    with open(path, mode='wb') as f:
+        f.writelines(img)
+
+
+def shuffle_and_rotate_img(img, testcase):
+    random.seed(testcase['random_state'])
+    div = testcase['divide']
+    div_size = div['size']
+    div_w = div['w']
+    div_h = div['h']
+
+    order = list(range(div_h*div_w))
+    random.shuffle(order)
+
+    split_imgs = []
+    for y in range(div_h):
+        for x in range(div_w):
+            split_imgs.append(img.crop((x*div_size, y*div_size, (x+1)*div_size, (y+1)*div_size)))
+
+    rotate_log = []
+
+    for y in range(div_h):
+        for x in range(div_w):
+            idx = y*div_w + x
+            direction = random.randint(0, 3)
+            if y == 0 and x == 0:
+                direction = 0
+            rotate_log.append(direction)
+            img.paste(split_imgs[order[idx]].rotate(direction*90), (x*div_size, y*div_size))
+
+    shuffle_log = np.zeros(div_h*div_w, object)
+    for y in range(div_h):
+        for x in range(div_w):
+            idx = y*div_w + x
+            shuffle_log[order[idx]] = '{:X}{:X}'.format(x, y)
+
+    shuffle_log = shuffle_log.reshape(div_h, div_w)
+    return shuffle_log, rotate_log
+
+
 def create_testdata(testcase):
-    pass
+    hash_val = hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest()
+    out_path = DATA_DIR + '/' + hash_val
+
+    if os.path.isdir(out_path):
+        return
+    os.mkdir(out_path)
+
+    img_name = testcase['name']
+    in_img_path = IMG_DIR + '/' + img_name + '.ppm'
+    img = Image.open(in_img_path)
+
+    div = testcase['divide']
+    w_size = div['size'] * div['w']
+    h_size = div['size'] * div['h']
+
+    if testcase['mode'] == 'resize':
+        img = img.resize((w_size, h_size))
+
+    if testcase['mode'] == 'crop':
+        img = img.crop((0, 0, w_size, h_size))
+
+    shuffle_log, rotate_log = shuffle_and_rotate_img(img, testcase)
+
+    out_img_path = out_path + '/prob.ppm'
+    img.save(out_img_path)
+    add_info_by_comment(out_img_path, testcase)
+
+    ans_path = out_path + '/true_ans.txt'
+    with open(ans_path, mode='w') as f:
+        f.writelines(map(str, rotate_log))
+        f.write('\n')
+        f.write('\n'.join(map(lambda x: ' '.join(x), shuffle_log)))
+        f.write('\n')
+
+    subprocess.run("python " + PROJECT_TOP_DIR + "/utility/image_divider.py " + out_path + '/prob.ppm', shell=True)
 
 
 def clean_up(testcases):
-    pass
+    targets = ['original_state.txt', 'restoration_procedure.txt']
+    for testcase in testcases.values():
+        hash_val = hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest()
+        out_path = DATA_DIR + '/' + hash_val
+
+        for file_name in targets:
+            if os.path.isfile(out_path+'/'+file_name):
+                os.remove(out_path+'/'+file_name)
 
 
-def exec_preprocess(config):
-    pass
-
-
-def exec_tests(config, testcases):
-    for test_name, testcase in testcases.items():
-        print(f'[{test_name}] start')
-        safety(exec_test, config, testcase, print_prefix='')
-        printG('done', prefix=f'[{test_name}] ')
+def exec_subprocess(process):
+    set_env = "PROJECT_TOP_DIR=" + os.path.abspath(PROJECT_TOP_DIR) + "; "
+    cmd = set_env + ' && '.join(process['run'])
+    result = subprocess.run(cmd,
+                            shell=True,
+                            stdout=subprocess.DEVNULL if not process['stdout'] else None,
+                            stderr=subprocess.DEVNULL if not process['stderr'] else None)
+    if result.returncode != 0:
+        raise ChildProcessError("preprocess failed")
 
 
 def exec_test(config, testcase):
     # raise ValueError("ve")
-    pass
-
-
-def exec_postprocess(config):
     pass
 
 
@@ -160,7 +246,7 @@ def requirement_test(args):
     printG('passed', prefix='    -> ')
 
     print('\nvalidate config')
-    safety(validate_and_fill_config, config)
+    config = safety(validate_and_fill_config, config)
     printG('passed', prefix='    -> ')
 
     print('\nvalidate testcases')
@@ -183,12 +269,19 @@ def requirement_test(args):
     printG('done', prefix='    -> ')
 
     print('\nexecute preprocess')
-    safety(exec_preprocess, config)
-    printG('done', prefix='    -> ')
+    for preprocess in config['preprocess']:
+        name = preprocess['name']
+        if preprocess['stdout']:
+            print(f'[{name}] start')
+        safety(exec_subprocess, preprocess)
+        printG('done', prefix=f'[{name}] ')
 
     print('\nexecute test')
     try:
-        safety(exec_tests, config, testcases)
+        for test_name, testcase in testcases.items():
+            print(f'[{test_name}] start')
+            safety(exec_test, config, testcase, print_prefix='')
+            printG('done', prefix=f'[{test_name}] ')
     except SystemExit as e:
         failed = True if e.code != 0 else False
         printR('stopped')
@@ -197,33 +290,22 @@ def requirement_test(args):
         printG('all test done')
 
     print("\nexecute postprocess")
-    safety(exec_postprocess, config)
-    printG('done', prefix='    -> ')
+    for postprocess in config['postprocess']:
+        name = postprocess['name']
+        if postprocess['stdout']:
+            print(f'[{name}] start')
+        safety(exec_subprocess, postprocess)
+        printG('done', prefix=f'[{name}] ')
 
     print('\nclean up')
     safety(clean_up, testcases)
     printG('done', prefix='    -> ')
-
-    # print('\nappend log')
-    # safety(append_log, testcases)
-    # printG('done', prefix='    -> ')
 
     if failed:
         printR('\nfailed')
         sys.exit(-1)
     else:
         printG('\ncomplete')
-
-    """
-    try:
-        for test_name, testcase in testcases.items():
-            fill_testcase(testcase)
-            testcases[test_name] = testcase
-            # create_testcase_data(testcases)
-            # clean_up_testcase_dir(testcases)
-    except MyError as e:
-        printR(e)
-    """
 
 
 def performance_test(args):

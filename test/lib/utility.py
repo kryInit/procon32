@@ -18,7 +18,7 @@ def printR(*args, prefix='', **kwargs):
         print('\033[31m', end='')
     print(*args, **kwargs)
     if sys.stdout.isatty():
-        print('\033[0m', end='')
+        print('\033[0m', end='', flush=True)
 
 
 def printG(*args, prefix='', **kwargs):
@@ -27,5 +27,5 @@ def printG(*args, prefix='', **kwargs):
         print('\033[32m', end='')
     print(*args, **kwargs)
     if sys.stdout.isatty():
-        print('\033[0m', end='')
+        print('\033[0m', end='', flush=True)
 
