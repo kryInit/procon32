@@ -224,13 +224,26 @@ def exec_subprocess(process, env=""):
         raise ChildProcessError("preprocess failed")
 
 
+def validate_original_state(prob_dir):
+    true_ans_path = prob_dir+'/true_original_state.txt'
+    with open(true_ans_path) as f:
+        true_state = f.read()
+
+    ans_path = prob_dir+'/original_state.txt'
+    with open(ans_path) as f:
+        state = f.read()
+
+    if true_state != state:
+        raise RuntimeError("wrong original_state: " + ans_path)
+
+
 def exec_test(testcase, process):
-    # raise ValueError("ve")
-    # exec_subprocess(testcase)
     hash_val = hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest()
     prob_dir = DATA_DIR + '/' + hash_val
     env = "PROB_DIR=" + prob_dir + "; "
     exec_subprocess(process, env)
+    if process['type'] == 'image restorer':
+        validate_original_state(prob_dir)
 
 
 def append_log(testcases):
@@ -255,6 +268,7 @@ def requirement_test(args):
 
     print('\nvalidate testcases')
     safety(validate_and_fill_testcases, testcases)
+    printG('passed', prefix='    -> ')
 
     print('\ncreate testdata')
     for test_name, testcase in testcases.items():
@@ -266,17 +280,17 @@ def requirement_test(args):
     safety(clean_up, testcases)
     printG('done', prefix='    -> ')
 
-    print('\nexecute preprocess')
+    if config['preprocess']:
+        print('\nexecute preprocess')
     for preprocess in config['preprocess']:
         name = preprocess['name']
         if preprocess['stdout'] or preprocess['stderr']:
             print(f'[{name}] start')
         else:
             print(f'[{name}] ', end='', flush=True)
-        safety(exec_subprocess, preprocess)
-        printG('done', prefix=f'[{name}] ' if preprocess['stdout'] or preprocess['stderr'] else '')
-
-    pprint.pprint(testcases)
+        prefix = f'[{name}] ' if preprocess['stdout'] or preprocess['stderr'] else ''
+        safety(exec_subprocess, preprocess, print_prefix=prefix)
+        printG('done', prefix=prefix)
 
     print('\nexecute test')
     try:
@@ -288,8 +302,9 @@ def requirement_test(args):
                     print(f'[{test_name}]::[{process_name}] start')
                 else:
                     print(f'[{test_name}]::[{process_name}] ', end='', flush=True)
-                safety(exec_test, testcase, process)
-                printG('done', prefix=f'[{test_name}]::[{process_name}] ' if process['stdout'] or process['stderr'] else '')
+                prefix=f'[{test_name}]::[{process_name}] ' if process['stdout'] or process['stderr'] else ''
+                safety(exec_test, testcase, process, print_prefix=prefix)
+                printG('done', prefix=prefix)
             printG('done\n', prefix=f'[{test_name}] ')
     except SystemExit as e:
         failed = True if e.code != 0 else False
@@ -298,7 +313,8 @@ def requirement_test(args):
         failed = False
         printG('all test done')
 
-    print("\nexecute postprocess")
+    if config['postprocess']:
+        print("\nexecute postprocess")
     for postprocess in config['postprocess']:
         name = postprocess['name']
         if postprocess['stdout'] or testcase['stderr']:
@@ -308,15 +324,15 @@ def requirement_test(args):
         safety(exec_subprocess, postprocess)
         printG('done', prefix=f'[{name}] ' if preprocess['stdout'] or preprocess['stderr'] else '')
 
-    print('\nclean up')
-    safety(clean_up, testcases)
-    printG('done', prefix='    -> ')
+    if not failed:
+        print('\nclean up')
+        safety(clean_up, testcases)
+        printG('done', prefix='    -> ')
 
-    if failed:
+        printG('\ncomplete')
+    else:
         printR('\nfailed')
         sys.exit(-1)
-    else:
-        printG('\ncomplete')
 
 
 def performance_test(args):
