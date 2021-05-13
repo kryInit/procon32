@@ -382,10 +382,12 @@ void sort_and_resize_states(vector<ImageState>& states, const unsigned int MAX_S
     rep(i,n) tmp[i] = states[v[i].second];
     states = move(tmp);
 }
-Answer get_answer(vector<ImageState>& sorted_states) {
+Answer get_answer(const vector<ImageState>& sorted_states, const Settings& settings) {
+    const auto& div_num = settings.DIV_NUM();
     for(const auto& img_state : sorted_states) {
         unsigned int rotation_times_00 = img_state.get_00_rotation_times();
-        if (rotation_times_00 % 2 == 0 || img_state.now_size.x == img_state.now_size.y) {
+        const auto& now_size = img_state.now_size;
+        if ((rotation_times_00%2 == 0 && now_size == div_num) || (rotation_times_00%2 == 1 && now_size.x == div_num.y && now_size.y == div_num.x)) {
             ImageState tmp = img_state;
             tmp.rotate_90deg(4 - rotation_times_00);
             return tmp.convert_answer();
@@ -398,8 +400,9 @@ Answer get_answer(vector<ImageState>& sorted_states) {
 Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) {
 //    dump_adjacency_info(adjacency, settings);
 
-    constexpr unsigned int MAX_STATE_NUM = 128;
+//    constexpr unsigned int MAX_STATE_NUM = 128;
 //    constexpr unsigned int MAX_STATE_NUM = 1024;
+    constexpr unsigned int MAX_STATE_NUM = 2048;
 //    constexpr unsigned int MAX_STATE_NUM = 8192;
 //    constexpr unsigned int MAX_STATE_NUM = 65536;
     const auto& DIV_NUM = settings.DIV_NUM();
@@ -434,5 +437,5 @@ Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) 
         cerr << "solve" << endl;
         exit(-1);
     }
-    return get_answer(now_states);
+    return get_answer(now_states, settings);
 }

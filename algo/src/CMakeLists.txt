@@ -21,8 +21,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 #set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
 
-message(${CMAKE_CXX_FLAGS})
-
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_subdirectory(utility)
