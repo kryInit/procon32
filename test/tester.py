@@ -1,7 +1,7 @@
 __doc__ = """{f}
 
 usage: 
-    {f} requirement TEST_CONFIG_PATH TESTCASE_PATH [--result-only]
+    {f} requirement TEST_CONFIG_PATH TESTCASE_PATH [--force --result-only]
     {f} performance TEST_CONFIG_PATH TESTCASE_PATH [--no-log --score-only]
     {f} performance log TESTCASE_PATH
     {f} images --list
