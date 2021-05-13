@@ -237,13 +237,20 @@ def validate_original_state(prob_dir):
         raise RuntimeError("wrong original_state: " + ans_path)
 
 
-def exec_test(testcase, process):
-    hash_val = hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest()
-    prob_dir = DATA_DIR + '/' + hash_val
-    env = "PROB_DIR=" + prob_dir + "; "
-    exec_subprocess(process, env)
-    if process['type'] == 'image restorer':
-        validate_original_state(prob_dir)
+def exec_test(testcase, process, force):
+    try:
+        hash_val = hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest()
+        prob_dir = DATA_DIR + '/' + hash_val
+        env = "PROB_DIR=" + prob_dir + "; "
+        exec_subprocess(process, env)
+        if process['type'] == 'image restorer':
+            validate_original_state(prob_dir)
+    except Exception as e:
+        if force:
+            return False
+        else:
+            raise e
+    return True
 
 
 def append_log(testcases):
@@ -293,7 +300,12 @@ def requirement_test(args):
         printG('done', prefix=prefix)
 
     print('\nexecute test')
+    failed = False
     try:
+        process_count = 0
+        pass_count = 0
+        passed_list = set()
+        failed_list = set()
         for test_name, testcase in testcases.items():
             print(f'[{test_name}] start')
             for process in config['test']:
@@ -302,15 +314,26 @@ def requirement_test(args):
                     print(f'[{test_name}]::[{process_name}] start')
                 else:
                     print(f'[{test_name}]::[{process_name}] ', end='', flush=True)
-                prefix=f'[{test_name}]::[{process_name}] ' if process['stdout'] or process['stderr'] else ''
-                safety(exec_test, testcase, process, print_prefix=prefix)
-                printG('done', prefix=prefix)
+                prefix = f'[{test_name}]::[{process_name}] ' if process['stdout'] or process['stderr'] else ''
+                passed = safety(exec_test, testcase, process, args['--force'], print_prefix=prefix)
+                process_count += 1
+                if passed:
+                    pass_count += 1
+                    passed_list.add(test_name)
+                    printG('done', prefix=prefix)
+                else:
+                    failed = True
+                    failed_list.add(test_name)
+                    printR('failed', prefix=prefix)
             printG('done\n', prefix=f'[{test_name}] ')
+        if args['--force']:
+            print('pass count: ' + str(pass_count) + '/' + str(process_count))
+            printG(*passed_list, prefix='passed test name: ', sep=', ')
+            printR(*failed_list, prefix='failed test name: ', sep=', ')
     except SystemExit as e:
         failed = True if e.code != 0 else False
         printR('stopped')
     else:
-        failed = False
         printG('all test done')
 
     if config['postprocess']:
