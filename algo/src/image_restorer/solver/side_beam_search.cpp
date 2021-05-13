@@ -4,6 +4,7 @@
 using namespace std;
 
 #define rep(i,n) for(int i=0; i < static_cast<int>(n); ++i)
+#define repm(i,n) for(int i=static_cast<int>(n)-1; i >= 0; --i)
 #define repo(i,o,n) for(int i=static_cast<int>(o); i < static_cast<int>(n); ++i)
 
 template<class T>
@@ -24,7 +25,7 @@ struct ImageFragmentState {
         times = 4 + (times%4);
         rotation_times = static_cast<unsigned char>((static_cast<int>(rotation_times)+times)%4);
     }
-    unsigned int get_idx() const { return static_cast<unsigned int>(orig_idx)*4 + static_cast<unsigned int>(rotation_times); }
+    [[nodiscard]] unsigned int get_idx() const { return static_cast<unsigned int>(orig_idx)*4 + static_cast<unsigned int>(rotation_times); }
 };
 
 struct ImageState {
@@ -33,7 +34,7 @@ struct ImageState {
     array<array<ImageFragmentState, MAX_DIV_NUM>, MAX_DIV_NUM> states;
     array<bool, MAX_DIV_NUM*MAX_DIV_NUM> placed;
 
-    float adjacency_ave() const {
+    [[nodiscard]] float adjacency_ave() const {
         return adjacency_sum / (float)(now_size.y*(now_size.x-1) + (now_size.y-1)*now_size.x);
     }
     void dump_for_human(const Vec2<unsigned int> DIV_NUM) const {
@@ -69,7 +70,7 @@ struct ImageState {
         dump(cout, Vec2<unsigned int>(now_size.x, now_size.y));
     }
 
-    unsigned char get_00_rotation_times() const {
+    [[nodiscard]] unsigned char get_00_rotation_times() const {
         rep(i,now_size.y) rep(j,now_size.x) if (states[i][j].orig_idx == 0) return states[i][j].rotation_times;
         return 255;
     }
@@ -239,12 +240,12 @@ pair<float, ImageFragmentState> get_best_adjacent_fragment(ImageFragmentState fr
         tmp.rotate_90deg(static_cast<int>(get_dir_offset(Direction::R, dir)));
         return make_pair(fp.adjacency, tmp);
     }
-    cerr << "get best adjacent fragment" << endl;
+    cerr << "get best adjacent fragment1" << endl;
     exit(-1);
 }
 pair<float, ImageFragmentState> get_best_adjacent_fragment(ImageFragmentState frag_state0, Direction dir0, ImageFragmentState frag_state1, Direction dir1, const array<bool, MAX_DIV_NUM*MAX_DIV_NUM>& placed, const double* adjacency, const v2fp& ordered_adjacency, const Vec2<unsigned int>& DIV_NUM) {
     if (dir0 == dir1) {
-        cerr << "get_best_adjacent_fragment" << endl;
+        cerr << "get_best_adjacent_fragment2" << endl;
         exit(-1);
     }
     const unsigned int N = DIV_NUM.y * DIV_NUM.x * 4;
@@ -283,7 +284,7 @@ pair<float, ImageFragmentState> get_best_adjacent_fragment(ImageFragmentState fr
     }
     */
     if (abs(min_adjacency - 1e20) < 1) {
-        cerr << "get best adjacent fragment" << endl;
+        cerr << "get best adjacent fragment3" << endl;
         exit(-1);
     }
     return make_pair(min_adjacency, best_frag_state);
@@ -312,29 +313,41 @@ vector<ImageState> get_first_sorted_states(const v2fp& ordered_adjacency, const 
     return now_states;
 }
 
-ImageState expand_image(ImageState img_state, Direction dir, const double *adjacency, const v2fp& ordered_adjacency, const Vec2<unsigned int>& DIV_NUM) {
+ImageState expand_image(ImageState img_state, Direction dir, unsigned int fp, const double *adjacency, const v2fp& ordered_adjacency, const Vec2<unsigned int>& DIV_NUM) {
     if (dir != Direction::D && dir != Direction::R) {
         cerr << "expand image" << endl;
         exit(-1);
     }
     const Vec2<unsigned short> now_size = img_state.now_size;
     if (dir == Direction::D) {
-        rep(i, now_size.x) {
-            pair<float, ImageFragmentState> tmp;
-            if (i == 0) tmp = get_best_adjacent_fragment(img_state.states[now_size.y-1][i], Direction::D, img_state.placed, ordered_adjacency, DIV_NUM);
-            else tmp = get_best_adjacent_fragment(img_state.states[now_size.y-1][i], Direction::D, img_state.states[now_size.y][i-1], Direction::R, img_state.placed, adjacency, ordered_adjacency, DIV_NUM);
+        pair<float, ImageFragmentState> tmp;
+        tmp = get_best_adjacent_fragment(img_state.states[now_size.y-1][fp], Direction::D, img_state.placed, ordered_adjacency, DIV_NUM);
+        img_state.place(Vec2<unsigned short>(fp, now_size.y), tmp.second, tmp.first);
+        repm(i,fp) {
+            tmp = get_best_adjacent_fragment(img_state.states[now_size.y-1][i], Direction::D, img_state.states[now_size.y][i+1], Direction::L, img_state.placed, adjacency, ordered_adjacency, DIV_NUM);
+            img_state.place(Vec2<unsigned short>(i, now_size.y), tmp.second, tmp.first);
+        }
+        repo(i,fp+1,now_size.x) {
+            tmp = get_best_adjacent_fragment(img_state.states[now_size.y-1][i], Direction::D, img_state.states[now_size.y][i-1], Direction::R, img_state.placed, adjacency, ordered_adjacency, DIV_NUM);
             img_state.place(Vec2<unsigned short>(i, now_size.y), tmp.second, tmp.first);
         }
     } else /* if (dir == Direction::R) */ {
-        rep(i,now_size.y) {
-            pair<float, ImageFragmentState> tmp;
-            if (i == 0) tmp = get_best_adjacent_fragment(img_state.states[i][now_size.x-1], Direction::R, img_state.placed, ordered_adjacency, DIV_NUM);
-            else tmp = get_best_adjacent_fragment(img_state.states[i][now_size.x-1], Direction::R, img_state.states[i-1][now_size.x], Direction::D, img_state.placed, adjacency, ordered_adjacency, DIV_NUM);
+        pair<float, ImageFragmentState> tmp;
+        tmp = get_best_adjacent_fragment(img_state.states[fp][now_size.x-1], Direction::R, img_state.placed, ordered_adjacency, DIV_NUM);
+        img_state.place(Vec2<unsigned short>(now_size.x, fp), tmp.second, tmp.first);
+        repm(i,fp) {
+            tmp = get_best_adjacent_fragment(img_state.states[i][now_size.x-1], Direction::R, img_state.states[i+1][now_size.x], Direction::U, img_state.placed, adjacency, ordered_adjacency, DIV_NUM);
+            img_state.place(Vec2<unsigned short>(now_size.x, i), tmp.second, tmp.first);
+        }
+        repo(i,fp+1,now_size.y) {
+            tmp = get_best_adjacent_fragment(img_state.states[i][now_size.x-1], Direction::R, img_state.states[i-1][now_size.x], Direction::D, img_state.placed, adjacency, ordered_adjacency, DIV_NUM);
             img_state.place(Vec2<unsigned short>(now_size.x, i), tmp.second, tmp.first);
         }
     }
     return img_state;
 }
+
+//const unsigned short TIMES = 3;
 vector<ImageState> generate_next_states(const vector<ImageState>& now_states, const double *adjacency, const v2fp& ordered_adjacency, const Vec2<unsigned int>& DIV_NUM) {
     vector<ImageState> next_states;
     next_states.reserve(now_states.size()*4);
@@ -345,12 +358,28 @@ vector<ImageState> generate_next_states(const vector<ImageState>& now_states, co
         const bool x_expandable = !(now_size.x < now_size.y && now_size.x == min(DIV_NUM.x, DIV_NUM.y)) && !(now_size.x > now_size.y && now_size.x == max(DIV_NUM.x, DIV_NUM.y));
         const bool y_expandable = !(now_size.y < now_size.x && now_size.y == min(DIV_NUM.x, DIV_NUM.y)) && !(now_size.y > now_size.x && now_size.y == max(DIV_NUM.x, DIV_NUM.y));
         if (x_expandable) {
-            next_states.push_back(expand_image(img_state, Direction::R, adjacency, ordered_adjacency, DIV_NUM));
-            next_states.push_back(expand_image(tmp_img_state, Direction::R, adjacency, ordered_adjacency, DIV_NUM));
+            next_states.push_back(expand_image(img_state, Direction::R, 0, adjacency, ordered_adjacency, DIV_NUM));
+            next_states.push_back(expand_image(tmp_img_state, Direction::R, 0, adjacency, ordered_adjacency, DIV_NUM));
+/*
+            const unsigned int offset = max(1,img_state.now_size.y / TIMES);
+            rep(i,min(TIMES, img_state.now_size.y)) {
+                const unsigned int fp = i*offset;
+                next_states.push_back(expand_image(img_state, Direction::R, fp, adjacency, ordered_adjacency, DIV_NUM));
+                next_states.push_back(expand_image(tmp_img_state, Direction::R, fp, adjacency, ordered_adjacency, DIV_NUM));
+            }
+*/
         }
         if (y_expandable) {
-            next_states.push_back(expand_image(img_state, Direction::D, adjacency, ordered_adjacency, DIV_NUM));
-            next_states.push_back(expand_image(tmp_img_state, Direction::D, adjacency, ordered_adjacency, DIV_NUM));
+            next_states.push_back(expand_image(img_state, Direction::D, 0, adjacency, ordered_adjacency, DIV_NUM));
+            next_states.push_back(expand_image(tmp_img_state, Direction::D, 0, adjacency, ordered_adjacency, DIV_NUM));
+/*
+            const unsigned int offset = max(1,img_state.now_size.x / TIMES);
+            rep(i,min(TIMES, img_state.now_size.x)) {
+                const unsigned int fp = i*offset;
+                next_states.push_back(expand_image(img_state, Direction::D, fp, adjacency, ordered_adjacency, DIV_NUM));
+                next_states.push_back(expand_image(tmp_img_state, Direction::D, fp, adjacency, ordered_adjacency, DIV_NUM));
+            }
+*/
         }
     }
     return next_states;
@@ -401,6 +430,7 @@ Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) 
 //    dump_adjacency_info(adjacency, settings);
 
 //    constexpr unsigned int MAX_STATE_NUM = 128;
+//    constexpr unsigned int MAX_STATE_NUM = 256;
 //    constexpr unsigned int MAX_STATE_NUM = 1024;
     constexpr unsigned int MAX_STATE_NUM = 2048;
 //    constexpr unsigned int MAX_STATE_NUM = 8192;
