@@ -41,38 +41,3 @@ jobs:
         run: python tester.py requirement images_for_procon32/config.toml images_for_procon32/all.toml --force
         working-directory: ./test
 
-  win:
-    name: windows
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: install library
-        run: |
-          pip install Pillow
-          pip install docopt
-          pip install numpy
-          pip install toml
-
-      - name: download images and config and testcase
-        run: |
-          set ZIP_ID="1xF_9FrIPRzSEhyXO-D5XWZ0knmZ6oztt"
-          curl -sc /tmp/cookie "https://drive.google.com/uc?export=download&id=%ZIP_ID%" > /dev/null
-          set CODE="$(awk '/_warning_/ {print $NF}' /tmp/cookie)"
-          curl -Lb /tmp/cookie "https://drive.google.com/uc?export=download&confirm=%CODE%&id=%ZIP_ID%" -o tmp.zip
-          unzip tmp.zip
-        working-directory: ./test
-
-      - name: register images
-        run: python tester.py images add -r images_for_procon32
-        working-directory: ./test
-
-      - name: dump images list
-        run: python tester.py images list -d
-        working-directory: ./test
-
-      - name: test restorer
-        run: python tester.py requirement images_for_procon32/config.toml images_for_procon32/all.toml --force
-        working-directory: ./test
-
-
