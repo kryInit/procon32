@@ -20,12 +20,11 @@ options:
 from docopt import docopt
 from lib.test import requirement_test, performance_test
 from lib.testlog import dump_performance_test_log
-from lib.images import dump_image_list, add_image, remove_image
+from lib.images import dump_image_list, add_images, remove_images
 
 # --hoge-onlyは--hoge-onlyを除いた引数でプログラムを呼び出し、出力先を適当なファイルにしておいて、
 if __name__ == '__main__':
     args = docopt(__doc__)
-    print(args)
     if args['requirement']:
         requirement_test(args)
     elif args['performance']:
@@ -37,7 +36,7 @@ if __name__ == '__main__':
         if args['--list']:
             dump_image_list()
         elif args['add']:
-            add_image(args)
+            add_images(args)
         elif args['rm']:
-            remove_image(args)
+            remove_images(args)
 
