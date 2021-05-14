@@ -1,5 +1,7 @@
 import os
+import math
 import toml
+import shutil
 import random
 import hashlib
 import subprocess
@@ -74,8 +76,9 @@ def validate_and_fill_testcases(testcases):
         'name': (str(), None,
                  lambda n: f": image named '{n}' is not exists" if not os.path.exists(IMG_DIR+'/'+n+'.ppm') else None),
         'timelimit': (int(), lambda: random.randint(300, 1200)),
-        'mode': (str(), 'resize',
-                 lambda m: " must be crop or resize" if m != 'resize' and m != 'crop' else None),
+        'mode': (str(), 'crop',
+                 lambda m: " must be crop or resize or trim"
+                 if m != 'resize' and m != 'crop' and m != 'trim' else None),
         'selectable_times': (int(), lambda: random.randint(2, 128)),
         'random_state': (int(),),
         'divide': ({
@@ -181,8 +184,12 @@ def create_testdata(testcase):
     if testcase['mode'] == 'resize':
         img = img.resize((w_size, h_size))
 
-    if testcase['mode'] == 'crop':
+    if testcase['mode'] == 'trim':
         img = img.crop((0, 0, w_size, h_size))
+
+    if testcase['mode'] == 'crop':
+        t = max(w_size / img.size[0], h_size / img.size[1])
+        img = img.resize(map(lambda x: math.ceil(x*t), img.size)).crop((0, 0, w_size, h_size))
 
     shuffle_log, rotate_log = shuffle_and_rotate_img(img, testcase)
 
@@ -200,15 +207,17 @@ def create_testdata(testcase):
     subprocess.run("python " + PROJECT_TOP_DIR + "/utility/image_divider.py " + out_path + '/prob.ppm', shell=True)
 
 
-def clean_up(testcases):
+def clean_up(testcases, all_data=False):
     targets = ['original_state.txt', 'restoration_procedure.txt']
     for testcase in testcases.values():
         hash_val = hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest()
         out_path = DATA_DIR + '/' + hash_val
-
-        for file_name in targets:
-            if os.path.isfile(out_path+'/'+file_name):
-                os.remove(out_path+'/'+file_name)
+        if all_data:
+            shutil.rmtree(out_path)
+        else:
+            for file_name in targets:
+                if os.path.isfile(out_path+'/'+file_name):
+                    os.remove(out_path+'/'+file_name)
 
 
 def exec_subprocess(process, env=""):
@@ -302,10 +311,11 @@ def requirement_test(args):
     try:
         process_count = 0
         pass_count = 0
-        passed_list = set()
-        failed_list = set()
+        passed_list = []
+        failed_list = []
         for test_name, testcase in testcases.items():
             print(f'[{test_name}] start / hash: ' + hashlib.md5(toml.dumps(testcase).encode('utf-8')).hexdigest())
+            all_passed = True
             for process in config['test']:
                 process_name = process['name']
                 if process['stdout'] or process['stderr']:
@@ -314,22 +324,27 @@ def requirement_test(args):
                     print(f'[{test_name}]::[{process_name}] ', end='', flush=True)
                 prefix = f'[{test_name}]::[{process_name}] ' if process['stdout'] or process['stderr'] else ''
                 passed = safety(exec_test, testcase, process, args['--force'], print_prefix=prefix)
+                all_passed = all_passed and passed
                 process_count += 1
                 if passed:
                     pass_count += 1
-                    passed_list.add(test_name)
                     printG('done', prefix=prefix)
                 else:
                     failed = True
-                    failed_list.add(test_name)
                     printR('failed', prefix=prefix)
-            printG('done\n', prefix=f'[{test_name}] ')
+            if all_passed:
+                passed_list.append(test_name)
+                printG('done\n', prefix=f'[{test_name}] ')
+            else:
+                failed_list.append(test_name)
+                printR('failed\n', prefix=f'[{test_name}] ')
         if args['--force']:
             print('pass count: ' + str(pass_count) + '/' + str(process_count))
             printG(*passed_list, prefix='passed test name: ', sep=', ')
             printR(*failed_list, prefix='failed test name: ', sep=', ')
     except SystemExit as e:
-        failed = True if e.code != 0 else False
+        if e.code != 0:
+            failed = True
         printR('stopped')
     else:
         printG('all test done')
@@ -347,7 +362,7 @@ def requirement_test(args):
 
     if not failed:
         print('\nclean up')
-        safety(clean_up, testcases)
+        safety(clean_up, testcases, args['--cleanup-all'])
         printG('done', prefix='    -> ')
 
         printG('\ncomplete')

@@ -1,13 +1,34 @@
 import os
-from .utility import *
+import math
 from PIL import Image
+from functools import reduce
+from .utility import *
 from .constant import PROJECT_TOP_DIR, TEST_DIR, IMG_DIR, DATA_DIR
 
 
-def dump_image_list():
-    sep = ', ' if sys.stdout.isatty() else '\n'
-    print(sep.join(list(map((lambda filename: os.path.splitext(filename)[0]),
-                            filter(lambda filename: filename[0] != '.', os.listdir(IMG_DIR))))))
+def dump_image_list(args):
+    images = list(filter(lambda x: x[0] != '.', os.listdir(IMG_DIR)))
+    images.sort()
+    labels = ['name', 'size(w,h)', 'gcd(w,h)', 'ratio']
+    images_info = []
+    if args['--detail']:
+        for filename in images:
+            image_name = os.path.splitext(filename)[0]
+            img = Image.open(f'{IMG_DIR}/{filename}')
+            gcd_wh = math.gcd(*img.size)
+            images_info.append(
+                list(map(str, [image_name, img.size, gcd_wh, tuple(map(lambda x: int(x/gcd_wh), img.size))]))
+            )
+        max_lengths = list(reduce(lambda xs, ys: map(max, zip(xs, ys)), map(lambda x: map(len, x), images_info), map(len, labels)))
+        images_info_formatted = list(map(lambda xs: [xs[i].ljust(max_lengths[i]) for i in range(len(xs))], images_info))
+        labels_formatted = [labels[i].center(max_lengths[i]) for i in range(len(labels))]
+        print(' | '.join(labels_formatted))
+        print(' | '.join(map(lambda x: '-'*x, max_lengths)))
+        for i in images_info_formatted:
+            print(' | '.join(i))
+    else:
+        sep = ', ' if sys.stdout.isatty() else '\n'
+        print(sep.join(list(map((lambda x: os.path.splitext(x)[0]), images))))
 
 
 def add_image(img_path, force):

@@ -1,17 +1,17 @@
 __doc__ = """{f}
 
 usage: 
-    {f} requirement TEST_CONFIG_PATH TESTCASE_PATH [--force --result-only]
+    {f} requirement TEST_CONFIG_PATH TESTCASE_PATH [--force --result-only --cleanup-all]
     {f} performance TEST_CONFIG_PATH TESTCASE_PATH [--no-log --score-only]
     {f} performance log TESTCASE_PATH
-    {f} images --list
-    {f} images add [-r -f] IMG_PATH [IMG_PATH...]
+    {f} images list [--detail]
+    {f} images add IMG_PATH [IMG_PATH...] [--recursive --force] 
     {f} images rm IMG_NAME [IMG_NAME...]
 
 options:
     -h, --help          show this help message
-    -l, --list          show registered images
     -r, --recursive     specify a directory and add everything in it
+    -d, --detail        
     -f, --force         
     --forever
 
@@ -33,8 +33,8 @@ if __name__ == '__main__':
         else:
             performance_test(args)
     elif args['images']:
-        if args['--list']:
-            dump_image_list()
+        if args['list']:
+            dump_image_list(args)
         elif args['add']:
             add_images(args)
         elif args['rm']:

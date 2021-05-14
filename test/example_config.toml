@@ -1,0 +1,43 @@
+[[preprocess]]
+    name = "build"
+    run = [
+        "if [ ! -d ${PROJECT_TOP_DIR}/algo/src/build ]; then mkdir ${PROJECT_TOP_DIR}/algo/src/build; fi",
+        "cd ${PROJECT_TOP_DIR}/algo/src/build",
+        "cmake -DCMAKE_BUILD_TYPE=Release ${PROJECT_TOP_DIR}/algo/src",
+        "make -j 12",
+    ]
+    stdout = false
+
+[[preprocess]]
+    name = "hoge"
+    run = [ "echo nothing", "echo hi" ]
+    stdout = false
+
+[[test]]
+    name = "hoge"
+    run = [ "echo hoge" ]
+    stdout = false
+
+[[test]]
+    name = "test image restorer"
+    type = "image restorer"
+    run = [ "${PROJECT_TOP_DIR}/algo/bin/image_restorer ${PROB_DIR}" ]
+
+[[test]]
+    name = "test procedure builder"
+    type = "procedure builder"
+    run = []
+    # run = [ "${PROJECT_TOP_DIR}/algo/bin/proc_builder ${PROB_DIR}" ]
+
+[[test]]
+    name = "test E2E"
+    type = "E2E"
+    run = [ 
+        # "${PROJECT_TOP_DIR}/algo/bin/image_restorer ${PROB_DIR}",
+        # "${PROJECT_TOP_DIR}/algo/bin/proc_builder ${PROB_DIR}",
+    ]
+    
+
+# [[postprocess]]
+    # run = [ "echo end" ]
+
