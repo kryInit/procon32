@@ -1,8 +1,6 @@
 import os
-import sys
 import toml
 import random
-import pprint
 import hashlib
 import subprocess
 import numpy as np
@@ -340,12 +338,12 @@ def requirement_test(args):
         print("\nexecute postprocess")
     for postprocess in config['postprocess']:
         name = postprocess['name']
-        if postprocess['stdout'] or testcase['stderr']:
+        if postprocess['stdout'] or postprocess['stderr']:
             print(f'[{name}] start')
         else:
             print(f'[{name}] ', end='', flush=True)
         safety(exec_subprocess, postprocess)
-        printG('done', prefix=f'[{name}] ' if preprocess['stdout'] or preprocess['stderr'] else '')
+        printG('done', prefix=f'[{name}] ' if postprocess['stdout'] or postprocess['stderr'] else '')
 
     if not failed:
         print('\nclean up')
@@ -361,17 +359,5 @@ def requirement_test(args):
 def performance_test(args):
     print('performance test')
 
-    """
-    a = toml.load("test.toml")
-    print(a)
-    PROJECT_TOP_DIR = os.path.abspath(os.path.dirname(sys.argv[1]) + os.path.pardir)
-    hoge = "PROJECT_TOP_DIR=" + PROJECT_TOP_DIR + "; "
-
-    cmd = hoge + 'if [ $? = 0 ]; then ' + '; else exit -1; fi; if [ $? = 0 ]; then '.join(a['preprocess'][0]['run']) + '; else exit -1; fi;'
-    print(cmd)
-    print("executing...")
-    result = subprocess.run(cmd, shell=True)
-    print(result.returncode)
-    """
 
 
