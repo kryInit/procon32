@@ -25,4 +25,4 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
 add_subdirectory(utility)
 add_subdirectory(image_restorer)
-add_executable(tmp tmp.cpp)
+# add_executable(tmp tmp.cpp)
