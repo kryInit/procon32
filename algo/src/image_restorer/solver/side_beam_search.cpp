@@ -49,7 +49,7 @@ struct ImageState {
     }
     void dump(ostream& os, Vec2<unsigned int> DIV_NUM) const {
         vector<int> v(DIV_NUM.y*DIV_NUM.x);
-        rep(i,DIV_NUM.y) rep(j,DIV_NUM.x) v[states[i][j].orig_idx] = states[i][j].rotation_times;
+        rep(i,now_size.y) rep(j,now_size.x) v[states[i][j].orig_idx] = states[i][j].rotation_times;
         for(const auto& i : v) os << i;
         os << endl;
         rep(i,DIV_NUM.y) {
