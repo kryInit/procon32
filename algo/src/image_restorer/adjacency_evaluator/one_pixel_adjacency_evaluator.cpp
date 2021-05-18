@@ -3,7 +3,6 @@
 using namespace std;
 
 #define rep(i,n) for(int i=0; i < static_cast<int>(n); ++i)
-#define repo(i,o,n) for(int i=static_cast<int>(o); i < static_cast<int>(n); ++i)
 
 void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings& settings, double *adjacency) {
 
@@ -32,13 +31,12 @@ void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings&
             }
             rep(K,4) {
                 const unsigned int offset = (I*div_num.x*4+J*4+K)*frag_size;
-                double var_sum = 0;
+                double std_sum = 0;
                 rep(y,frag_size) {
                     Vec3<double> tmp = static_cast<Vec3<double>>(*(perimeters+offset+y)) - memo[y];
-                    var_sum += tmp.mul_each_other(tmp).sum() / 3. / 2.;
+                    std_sum += tmp.mag();
                 }
-                double var_ave = var_sum / frag_size;
-                *now_ptr = sqrt(var_ave);
+                *now_ptr = std_sum;
                 now_ptr++;
             }
         }
