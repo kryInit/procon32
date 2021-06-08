@@ -1,0 +1,2 @@
+/usr/bin/ar qc libgeneral_class.a  CMakeFiles/general_class.dir/simulated_annealing.cpp.o
+/usr/bin/ranlib libgeneral_class.a

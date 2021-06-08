@@ -1,0 +1,525 @@
+[minimum-000]
+name = 'atcoder'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 0
+
+[minimum-001]
+name = 'be_a_pro'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 1
+
+[minimum-002]
+name = 'chokudai'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 2
+
+[minimum-003]
+name = 'cs'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 3
+
+[minimum-004]
+name = 'green'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 4
+
+[minimum-005]
+name = 'ia'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 5
+
+[minimum-006]
+name = 'nino'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 6
+
+[minimum-007]
+name = 'sink'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 7
+
+[minimum-008]
+name = 'taguri'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 8
+
+[minimum-009]
+name = 'wa_tle'
+divide = { size = 16, h = 2, w = 2 }
+random_state = 9
+
+[S-S-000]
+name = 'atcoder'
+divide = { size = 32, h = 4, w = 3 }
+random_state = 10
+
+[S-S-001]
+name = 'be_a_pro'
+divide = { size = 32, h = 4, w = 3 }
+random_state = 11
+
+[S-S-002]
+name = 'chokudai'
+divide = { size = 32, h = 3, w = 4 }
+random_state = 12
+
+[S-S-003]
+name = 'cs'
+divide = { size = 32, h = 3, w = 4 }
+random_state = 13
+
+[S-S-004]
+name = 'green'
+divide = { size = 32, h = 4, w = 3 }
+random_state = 14
+
+[S-S-005]
+name = 'ia'
+divide = { size = 32, h = 3, w = 4 }
+random_state = 15
+
+[S-S-006]
+name = 'nino'
+divide = { size = 32, h = 4, w = 3 }
+random_state = 16
+
+[S-S-007]
+name = 'sink'
+divide = { size = 32, h = 4, w = 3 }
+random_state = 17
+
+[S-S-008]
+name = 'taguri'
+divide = { size = 32, h = 3, w = 4 }
+random_state = 18
+
+[S-S-009]
+name = 'wa_tle'
+divide = { size = 32, h = 2, w = 4 }
+random_state = 19
+
+[S-M-000]
+name = 'atcoder'
+divide = { size = 32, h = 8, w = 6 }
+random_state = 20
+
+[S-M-001]
+name = 'be_a_pro'
+divide = { size = 32, h = 8, w = 6 }
+random_state = 21
+
+[S-M-002]
+name = 'chokudai'
+divide = { size = 32, h = 6, w = 8 }
+random_state = 22
+
+[S-M-003]
+name = 'cs'
+divide = { size = 32, h = 6, w = 8 }
+random_state = 23
+
+[S-M-004]
+name = 'green'
+divide = { size = 32, h = 8, w = 6 }
+random_state = 24
+
+[S-M-005]
+name = 'ia'
+divide = { size = 32, h = 6, w = 8 }
+random_state = 25
+
+[S-M-006]
+name = 'nino'
+divide = { size = 32, h = 8, w = 6 }
+random_state = 26
+
+[S-M-007]
+name = 'sink'
+divide = { size = 32, h = 8, w = 6 }
+random_state = 27
+
+[S-M-008]
+name = 'taguri'
+divide = { size = 32, h = 6, w = 8 }
+random_state = 28
+
+[S-M-009]
+name = 'wa_tle'
+divide = { size = 32, h = 4, w = 8 }
+random_state = 29
+
+[S-L-000]
+name = 'atcoder'
+divide = { size = 32, h = 16, w = 12 }
+random_state = 30
+
+[S-L-001]
+name = 'be_a_pro'
+divide = { size = 32, h = 16, w = 12 }
+random_state = 31
+
+[S-L-002]
+name = 'chokudai'
+divide = { size = 32, h = 12, w = 16 }
+random_state = 32
+
+[S-L-003]
+name = 'cs'
+divide = { size = 32, h = 12, w = 16 }
+random_state = 33
+
+[S-L-004]
+name = 'green'
+divide = { size = 32, h = 16, w = 12 }
+random_state = 34
+
+[S-L-005]
+name = 'ia'
+divide = { size = 32, h = 12, w = 16 }
+random_state = 35
+
+[S-L-006]
+name = 'nino'
+divide = { size = 32, h = 16, w = 12 }
+random_state = 36
+
+[S-L-007]
+name = 'sink'
+divide = { size = 32, h = 16, w = 12 }
+random_state = 37
+
+[S-L-008]
+name = 'taguri'
+divide = { size = 32, h = 12, w = 16 }
+random_state = 38
+
+[S-L-009]
+name = 'wa_tle'
+divide = { size = 32, h = 9, w = 16 }
+random_state = 39
+
+[M-S-000]
+name = 'jx000'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 40
+
+[M-S-001]
+name = 'jx001'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 41
+
+[M-S-002]
+name = 'jxc'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 42
+
+[M-S-003]
+name = 'kotaro001'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 43
+
+[M-S-004]
+name = 'sushi000'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 44
+
+[M-S-005]
+name = 'sushi001'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 45
+
+[M-S-006]
+name = 'sushi002'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 46
+
+[M-S-007]
+name = 'sushi003'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 47
+
+[M-S-008]
+name = 'sushi004'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 48
+
+[M-S-009]
+name = 'sushi005'
+divide = { size = 64, h = 3, w = 4 }
+random_state = 49
+
+[M-M-000]
+name = 'jx000'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 50
+
+[M-M-001]
+name = 'jx001'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 51
+
+[M-M-002]
+name = 'jxc'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 52
+
+[M-M-003]
+name = 'kotaro001'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 53
+
+[M-M-004]
+name = 'sushi000'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 54
+
+[M-M-005]
+name = 'sushi001'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 55
+
+[M-M-006]
+name = 'sushi002'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 56
+
+[M-M-007]
+name = 'sushi003'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 57
+
+[M-M-008]
+name = 'sushi004'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 58
+
+[M-M-009]
+name = 'sushi005'
+divide = { size = 64, h = 6, w = 8 }
+random_state = 59
+
+[M-L-000]
+name = 'fugaku1'
+divide = { size = 64, h = 9, w = 16 }
+random_state = 60
+
+[M-L-001]
+name = 'fugaku2'
+divide = { size = 64, h = 9, w = 16 }
+random_state = 61
+
+[M-L-002]
+name = 'fugaku3'
+divide = { size = 64, h = 9, w = 16 }
+random_state = 62
+
+[M-L-003]
+name = 'jxc'
+divide = { size = 64, h = 12, w = 16 }
+random_state = 63
+
+[M-L-004]
+name = 'kotaro001'
+divide = { size = 64, h = 12, w = 16 }
+random_state = 64
+
+[M-L-005]
+name = 'sushi000'
+divide = { size = 64, h = 12, w = 16 }
+random_state = 65
+
+[M-L-006]
+name = 'sushi001'
+divide = { size = 64, h = 12, w = 16 }
+random_state = 66
+
+[M-L-007]
+name = 'sushi002'
+divide = { size = 64, h = 12, w = 16 }
+random_state = 67
+
+[M-L-008]
+name = 'sushi003'
+divide = { size = 64, h = 12, w = 16 }
+random_state = 68
+
+[M-L-009]
+name = 'sushi004'
+divide = { size = 64, h = 12, w = 16 }
+random_state = 69
+
+[L-S-000]
+name = 'unit000'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 71
+
+[L-S-001]
+name = 'unit001'
+divide = { size = 128, h = 4, w = 3 }
+random_state = 71
+
+[L-S-002]
+name = 'unit002'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 72
+
+[L-S-003]
+name = 'unit003'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 73
+
+[L-S-004]
+name = 'ls000'
+divide = { size = 128, h = 4, w = 3 }
+random_state = 74
+
+[L-S-005]
+name = 'ls001'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 75
+
+[L-S-006]
+name = 'ls002'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 76
+
+[L-S-007]
+name = 'ls003'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 77
+
+[L-S-008]
+name = 'ls004'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 78
+
+[L-S-009]
+name = 'ls005'
+divide = { size = 128, h = 3, w = 4 }
+random_state = 79
+
+[L-M-000]
+name = 'unit000'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 81
+
+[L-M-001]
+name = 'unit001'
+divide = { size = 128, h = 8, w = 6 }
+random_state = 81
+
+[L-M-002]
+name = 'unit002'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 82
+
+[L-M-003]
+name = 'unit003'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 83
+
+[L-M-004]
+name = 'ls000'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 84
+
+[L-M-005]
+name = 'ls001'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 85
+
+[L-M-006]
+name = 'ls002'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 86
+
+[L-M-007]
+name = 'ls003'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 87
+
+[L-M-008]
+name = 'ls004'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 88
+
+[L-M-009]
+name = 'ls005'
+divide = { size = 128, h = 6, w = 8 }
+random_state = 89
+
+[L-L-000]
+name = 'dd000'
+divide = { size = 128, h = 12, w = 16 }
+random_state = 90
+
+[L-L-001]
+name = 'dd001'
+divide = { size = 128, h = 16, w = 12 }
+random_state = 91
+
+[L-L-002]
+name = 'dd002'
+divide = { size = 128, h = 16, w = 12 }
+random_state = 92
+
+[L-L-003]
+name = 'dd003'
+divide = { size = 128, h = 12, w = 16 }
+random_state = 93
+
+[L-L-004]
+name = 'dd004'
+divide = { size = 128, h = 12, w = 16 }
+random_state = 94
+
+[L-L-005]
+name = 'dd005'
+divide = { size = 128, h = 16, w = 12 }
+random_state = 95
+
+[L-L-006]
+name = 'dd006'
+divide = { size = 128, h = 12, w = 16 }
+random_state = 96
+
+[L-L-007]
+name = 'dd007'
+divide = { size = 128, h = 12, w = 16 }
+random_state = 97
+
+[L-L-008]
+name = 'dd008'
+divide = { size = 128, h = 16, w = 12 }
+random_state = 98
+
+[L-L-009]
+name = 'dd009'
+divide = { size = 128, h = 16, w = 12 }
+random_state = 99
+
+[hard000]
+name = 'toilet'
+divide = { size = 128, h = 2, w = 2 }
+random_state = 100
+
+[hard001]
+name = 'da'
+divide = { size = 128, h = 2, w = 4 }
+random_state = 101
+
+[hard002]
+name = 'kotaro000'
+divide = { size = 128, h = 4, w = 2 }
+random_state = 102
+
+[hard004]
+name = 'poster'
+divide = { size = 128, h = 2, w = 3 }
+random_state = 103
+
+[hard005]
+name = 'bakadomo'
+divide = { size = 128, h = 5, w = 4 }
+random_state = 104
+

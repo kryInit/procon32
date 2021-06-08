@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../utility/random/random.hpp
+
+../utility/time/stopwatch.hpp
+chrono
+-
+
+../utility/time/time_manager.hpp
+stopwatch.hpp
+../utility/time/stopwatch.hpp
+
+/root/source/procon32/algo/src/utility/general_class/simulated_annealing.cpp
+simulated_annealing.hpp
+/root/source/procon32/algo/src/utility/general_class/simulated_annealing.hpp
+random.hpp
+-
+cmath
+-
+
+/root/source/procon32/algo/src/utility/general_class/simulated_annealing.hpp
+time_manager.hpp
+-
+

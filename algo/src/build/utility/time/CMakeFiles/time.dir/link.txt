@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtime.a  CMakeFiles/time.dir/stopwatch.cpp.o CMakeFiles/time.dir/time_manager.cpp.o
+/usr/bin/ranlib libtime.a

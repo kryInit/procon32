@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/source/procon32/algo/src/utility/time/stopwatch.cpp
+iostream
+-
+stopwatch.hpp
+/root/source/procon32/algo/src/utility/time/stopwatch.hpp
+
+/root/source/procon32/algo/src/utility/time/stopwatch.hpp
+chrono
+-
+
+/root/source/procon32/algo/src/utility/time/time_manager.cpp
+iostream
+-
+time_manager.hpp
+/root/source/procon32/algo/src/utility/time/time_manager.hpp
+
+/root/source/procon32/algo/src/utility/time/time_manager.hpp
+stopwatch.hpp
+/root/source/procon32/algo/src/utility/time/stopwatch.hpp
+

@@ -4,10 +4,10 @@
 #include "settings.hpp"
 
 class ImageFragment {
+public:
     unsigned int FRAG_SIZE;
     RGB **img_data;
 
-public:
     ImageFragment();
     ~ImageFragment();
     [[nodiscard]] const unsigned int& FRAGMENT_SIZE() const;
@@ -19,9 +19,10 @@ public:
 
 class Image {
     Vec2<unsigned int> DIV_NUM;
-    ImageFragment **img_frags;
 
 public:
+    ImageFragment **img_frags;
+
     Image();
     ~Image();
 

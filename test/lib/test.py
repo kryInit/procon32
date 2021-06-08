@@ -204,8 +204,8 @@ def create_testdata(testcase):
         f.write('\n'.join(map(lambda x: ' '.join(x), shuffle_log)))
         f.write('\n')
 
-    subprocess.run("python " + PROJECT_TOP_DIR + "/utility/image_divider.py " + out_path + '/prob.ppm', shell=True)
-
+    hoge = subprocess.run("python3 " + PROJECT_TOP_DIR + "/utility/image_divider.py " + out_path + '/prob.ppm', shell=True)
+    print(hoge.returncode)
 
 def clean_up(testcases, all_data=False):
     targets = ['original_state.txt', 'restoration_procedure.txt']

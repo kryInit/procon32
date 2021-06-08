@@ -1,0 +1,13 @@
+python3 tester.py requirement config.toml all.toml --force
+
+2021/5/20
+pass count: 73/105
+passed test name: minimum-000, minimum-001, minimum-002, minimum-003, minimum-004, minimum-006, minimum-008, minimum-009, S-S-000, S-S-001, S-S-002, S-S-003, S-S-004, S-S-006, S-S-007, S-S-008, S-M-003, S-M-004, S-M-005, S-M-006, S-M-008, S-L-008, M-S-000, M-S-001, M-S-002, M-S-003, M-S-004, M-S-005, M-S-006, M-S-007, M-S-008, M-S-009, M-M-000, M-M-001, M-M-002, M-M-003, M-M-004, M-M-005, M-M-006, M-M-007, M-M-008, M-L-003, M-L-004, M-L-006, M-L-008, L-S-000, L-S-001, L-S-002, L-S-003, L-S-004, L-S-005, L-S-006, L-S-007, L-S-008, L-S-009, L-M-000, L-M-001, L-M-002, L-M-004, L-M-005, L-M-006, L-M-007, L-M-008, L-M-009, L-L-000, L-L-002, L-L-003, L-L-004, L-L-005, L-L-006, L-L-007, L-L-008, hard000
+failed test name: minimum-005, minimum-007, S-S-005, S-S-009, S-M-000, S-M-001, S-M-002, S-M-007, S-M-009, S-L-000, S-L-001, S-L-002, S-L-003, S-L-004, S-L-005, S-L-006, S-L-007, S-L-009, M-M-009, M-L-000, M-L-001, M-L-002, M-L-005, M-L-007, M-L-009, L-M-003, L-L-001, L-L-009, hard001, hard002, hard004, hard005
+all test done
+
+2021/5/23
+pass count: 73/105
+passed test name: minimum-000, minimum-001, minimum-002, minimum-003, minimum-004, minimum-006, minimum-008, minimum-009, S-S-000, S-S-001, S-S-002, S-S-003, S-S-004, S-S-006, S-S-007, S-S-008, S-M-004, S-M-005, S-M-006, S-M-008, S-L-008, M-S-000, M-S-001, M-S-002, M-S-003, M-S-004, M-S-005, M-S-006, M-S-007, M-S-008, M-S-009, M-M-000, M-M-001, M-M-002, M-M-003, M-M-004, M-M-005, M-M-006, M-M-007, M-M-008, M-L-003, M-L-004, M-L-005, M-L-006, M-L-008, L-S-000, L-S-001, L-S-002, L-S-003, L-S-004, L-S-005, L-S-006, L-S-007, L-S-008, L-S-009, L-M-000, L-M-001, L-M-002, L-M-004, L-M-005, L-M-006, L-M-007, L-M-008, L-M-009, L-L-000, L-L-002, L-L-003, L-L-004, L-L-005, L-L-006, L-L-007, L-L-008, hard000
+failed test name: minimum-005, minimum-007, S-S-005, S-S-009, S-M-000, S-M-001, S-M-002, S-M-003, S-M-007, S-M-009, S-L-000, S-L-001, S-L-002, S-L-003, S-L-004, S-L-005, S-L-006, S-L-007, S-L-009, M-M-009, M-L-000, M-L-001, M-L-002, M-L-007, M-L-009, L-M-003, L-L-001, L-L-009, hard001, hard002, hard004, hard005
+all test done

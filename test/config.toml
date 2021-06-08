@@ -1,0 +1,18 @@
+[[preprocess]]
+    name = "build"
+    run = [
+        "if [ ! -d ${PROJECT_TOP_DIR}/algo/src/build ]; then mkdir ${PROJECT_TOP_DIR}/algo/src/build; fi",
+        "cd ${PROJECT_TOP_DIR}/algo/src/build",
+        "cmake -DCMAKE_BUILD_TYPE=Release ${PROJECT_TOP_DIR}/algo/src",
+        "make -j 12",
+    ]
+    stdout = false
+
+[[test]]
+    name = "test image restorer"
+    type = "image restorer"
+    run = [ "${PROJECT_TOP_DIR}/algo/bin/image_restorer ${PROB_DIR}" ]
+    # stdout = false
+    # stderr = false
+    
+

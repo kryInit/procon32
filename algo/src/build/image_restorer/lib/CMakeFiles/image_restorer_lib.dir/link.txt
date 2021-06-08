@@ -1,0 +1,2 @@
+/usr/bin/ar qc libimage_restorer_lib.a  CMakeFiles/image_restorer_lib.dir/settings.cpp.o CMakeFiles/image_restorer_lib.dir/image.cpp.o CMakeFiles/image_restorer_lib.dir/answer.cpp.o
+/usr/bin/ranlib libimage_restorer_lib.a

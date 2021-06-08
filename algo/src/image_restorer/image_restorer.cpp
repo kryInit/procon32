@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     img.load(frag_dir_path, settings);
 //    cout << "finish load" << endl;
 
-    Answer ans = solver<OnePixelAdjacencyEvaluator, SideBeamSearchSolver>(img, settings);
+    Answer ans = solver<ParallelThreePixelAdjacencyEvaluator, SideBeamSearchSolver>(img, settings);
     string ans_path = string(argv[1]) + "/original_state.txt";
     ofstream ofs(ans_path);
     ans.dump();

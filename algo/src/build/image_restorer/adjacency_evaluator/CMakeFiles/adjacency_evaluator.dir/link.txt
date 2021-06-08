@@ -1,0 +1,2 @@
+/usr/bin/ar qc libadjacency_evaluator.a  CMakeFiles/adjacency_evaluator.dir/one_pixel_adjacency_evaluator.cpp.o CMakeFiles/adjacency_evaluator.dir/vertical_two_pixel_adjacency_evaluator.cpp.o CMakeFiles/adjacency_evaluator.dir/parallel_three_pixel_adjacency_evaluator.cpp.o
+/usr/bin/ranlib libadjacency_evaluator.a

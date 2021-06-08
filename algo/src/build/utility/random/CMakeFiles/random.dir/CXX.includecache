@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/source/procon32/algo/src/utility/random/random.cpp
+random.hpp
+/root/source/procon32/algo/src/utility/random/random.hpp
+cmath
+-
+climits
+-
+
+/root/source/procon32/algo/src/utility/random/random.hpp
+
