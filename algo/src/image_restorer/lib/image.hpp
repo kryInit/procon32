@@ -4,9 +4,11 @@
 #include "settings.hpp"
 
 class ImageFragment {
-public:
     unsigned int FRAG_SIZE;
     RGB **img_data;
+
+public:
+    const RGB *const *get_image_data() { return img_data; }
 
     ImageFragment();
     ~ImageFragment();
@@ -19,12 +21,14 @@ public:
 
 class Image {
     Vec2<unsigned int> DIV_NUM;
+    ImageFragment **img_frags;
 
 public:
-    ImageFragment **img_frags;
 
     Image();
     ~Image();
+    
+    const ImageFragment *const *get_image_fragments() { return img_frags; }
 
     void load(const std::string& frags_dir_path, const Settings& settings);
     void dump() const;

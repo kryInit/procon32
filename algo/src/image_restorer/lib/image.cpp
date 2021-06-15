@@ -14,6 +14,7 @@ ImageFragment::~ImageFragment() {
         img_data = nullptr;
     }
 }
+
 [[nodiscard]] const unsigned int& ImageFragment::FRAGMENT_SIZE() const { return FRAG_SIZE; }
 void ImageFragment::load(const string& frag_path, const Settings& settings) {
     if (img_data != nullptr) {
@@ -81,6 +82,11 @@ Image::~Image() {
         delete[] img_frags;
         img_frags = nullptr;
     }
+}
+
+void Image::get_image_fragments(ImageFragment **frags)
+{
+    frags = Image::img_frags;
 }
 
 void Image::load(const string& frags_dir_path, const Settings& settings) {
