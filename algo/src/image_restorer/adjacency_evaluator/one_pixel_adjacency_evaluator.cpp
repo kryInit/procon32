@@ -7,10 +7,10 @@ using namespace std;
 
 void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings& settings, double *adjacency) {
 
-    constexpr unsigned int size = 10;
+    constexpr unsigned int size = 1;
     auto frag_size = settings.FRAG_SIZE();
     auto div_num = settings.DIV_NUM();
-    RGB *perimeters = new RGB[div_num.y*div_num.x*4*frag_size*size];
+    RGB *perimeters = new RGB[div_num.y*div_num.x*4*frag_size];
     img.get_all_perimeter(size, perimeters);
 
     auto *memo = new Vec3<double>[frag_size];
@@ -35,10 +35,10 @@ void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings&
                 double var_sum = 0;
                 rep(y,frag_size) {
                     Vec3<double> tmp = static_cast<Vec3<double>>(*(perimeters+offset+y)) - memo[y];
-                    var_sum += tmp.sum() * (1. - 2. * (tmp.sum() < 0.));
+                    var_sum += tmp.mul_each_other(tmp).sum() / 3. / 2.;
                 }
                 double var_ave = var_sum / frag_size;
-                *now_ptr = var_ave;
+                *now_ptr = sqrt(var_ave);
                 now_ptr++;
             }
         }
