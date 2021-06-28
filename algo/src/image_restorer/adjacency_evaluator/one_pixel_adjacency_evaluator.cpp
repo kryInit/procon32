@@ -35,7 +35,7 @@ void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings&
                 double var_sum = 0;
                 rep(y,frag_size) {
                     Vec3<double> tmp = static_cast<Vec3<double>>(*(perimeters+offset+y)) - memo[y];
-                    var_sum += tmp.mul_each_other(tmp).sum() / 3. / 2.;
+                    var_sum += tmp.mul_each_other(tmp).sum() / 3. / 2. * 1.;
                 }
                 double var_ave = var_sum / frag_size;
                 *now_ptr = sqrt(var_ave);
