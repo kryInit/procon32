@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - kr
 
 jobs:
   job1:
