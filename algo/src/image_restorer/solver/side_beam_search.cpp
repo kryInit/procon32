@@ -347,7 +347,7 @@ ImageState expand_image(ImageState img_state, Direction dir, unsigned int fp, co
     return img_state;
 }
 
-//const unsigned short TIMES = 3;
+const unsigned short TIMES = 1000;
 vector<ImageState> generate_next_states(const vector<ImageState>& now_states, const double *adjacency, const v2fp& ordered_adjacency, const Vec2<unsigned int>& DIV_NUM) {
     vector<ImageState> next_states;
     next_states.reserve(now_states.size()*4);
@@ -358,28 +358,28 @@ vector<ImageState> generate_next_states(const vector<ImageState>& now_states, co
         const bool x_expandable = !(now_size.x < now_size.y && now_size.x == min(DIV_NUM.x, DIV_NUM.y)) && !(now_size.x > now_size.y && now_size.x == max(DIV_NUM.x, DIV_NUM.y));
         const bool y_expandable = !(now_size.y < now_size.x && now_size.y == min(DIV_NUM.x, DIV_NUM.y)) && !(now_size.y > now_size.x && now_size.y == max(DIV_NUM.x, DIV_NUM.y));
         if (x_expandable) {
-            next_states.push_back(expand_image(img_state, Direction::R, 0, adjacency, ordered_adjacency, DIV_NUM));
-            next_states.push_back(expand_image(tmp_img_state, Direction::R, 0, adjacency, ordered_adjacency, DIV_NUM));
-/*
+//            next_states.push_back(expand_image(img_state, Direction::R, 0, adjacency, ordered_adjacency, DIV_NUM));
+//            next_states.push_back(expand_image(tmp_img_state, Direction::R, 0, adjacency, ordered_adjacency, DIV_NUM));
+///*
             const unsigned int offset = max(1,img_state.now_size.y / TIMES);
             rep(i,min(TIMES, img_state.now_size.y)) {
                 const unsigned int fp = i*offset;
                 next_states.push_back(expand_image(img_state, Direction::R, fp, adjacency, ordered_adjacency, DIV_NUM));
                 next_states.push_back(expand_image(tmp_img_state, Direction::R, fp, adjacency, ordered_adjacency, DIV_NUM));
             }
-*/
+//*/
         }
         if (y_expandable) {
-            next_states.push_back(expand_image(img_state, Direction::D, 0, adjacency, ordered_adjacency, DIV_NUM));
-            next_states.push_back(expand_image(tmp_img_state, Direction::D, 0, adjacency, ordered_adjacency, DIV_NUM));
-/*
+//            next_states.push_back(expand_image(img_state, Direction::D, 0, adjacency, ordered_adjacency, DIV_NUM));
+//            next_states.push_back(expand_image(tmp_img_state, Direction::D, 0, adjacency, ordered_adjacency, DIV_NUM));
+///*
             const unsigned int offset = max(1,img_state.now_size.x / TIMES);
             rep(i,min(TIMES, img_state.now_size.x)) {
                 const unsigned int fp = i*offset;
                 next_states.push_back(expand_image(img_state, Direction::D, fp, adjacency, ordered_adjacency, DIV_NUM));
                 next_states.push_back(expand_image(tmp_img_state, Direction::D, fp, adjacency, ordered_adjacency, DIV_NUM));
             }
-*/
+//*/
         }
     }
     return next_states;
@@ -429,10 +429,10 @@ Answer get_answer(const vector<ImageState>& sorted_states, const Settings& setti
 Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) {
 //    dump_adjacency_info(adjacency, settings);
 
-//    constexpr unsigned int MAX_STATE_NUM = 128;
+    constexpr unsigned int MAX_STATE_NUM = 128;
 //    constexpr unsigned int MAX_STATE_NUM = 256;
 //    constexpr unsigned int MAX_STATE_NUM = 1024;
-    constexpr unsigned int MAX_STATE_NUM = 2048;
+//    constexpr unsigned int MAX_STATE_NUM = 2048;
 //    constexpr unsigned int MAX_STATE_NUM = 8192;
 //    constexpr unsigned int MAX_STATE_NUM = 65536;
     const auto& DIV_NUM = settings.DIV_NUM();
@@ -444,8 +444,12 @@ Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) 
 //    dump_states(now_states, DIV_NUM);
 
     const unsigned int STEP_NUM = DIV_NUM.y + DIV_NUM.x - 3;
+
     rep(step, STEP_NUM) {
 //        cout << step << " th" << endl;
+//        cout << "\n\n" << "=============================" << endl;
+//        dump_states(now_states, DIV_NUM, 10);
+//        cout << "=============================" << "\n\n" << endl;
 /*
         cout << "\n\n" << "=============================" << endl;
         dump_states(now_states, DIV_NUM, 10);
@@ -461,7 +465,6 @@ Answer SideBeamSearchSolver::solve(double *adjacency, const Settings& settings) 
         sort_and_resize_states(next_states, MAX_STATE_NUM);
 //        dump_states(next_states, DIV_NUM, 100);
         now_states = move(next_states);
-
     }
     if (now_states.empty()) {
         cerr << "solve" << endl;
