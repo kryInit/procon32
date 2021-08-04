@@ -20,13 +20,11 @@ for y in range(div_h):
 
 with open(ans_path) as f:
     rotations = f.readline().splitlines()[0]
-    for i in range(len(rotations)):
-        split_imgs[i] = split_imgs[i].rotate(360-int(rotations[i])*90)
-
     orig_idxes = f.readlines()
     for y, i in enumerate(orig_idxes):
         for x, j in enumerate(i.split()):
             idx = int(j[0], base=16) + int(j[1], base=16)*div_w
+            split_imgs[idx] = split_imgs[idx].rotate(360 - int(rotations[y*div_w + x])*90)
             img.paste(split_imgs[idx], (x*div_size, y*div_size))
 
 img.save('./dump.jpg')

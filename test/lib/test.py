@@ -144,7 +144,7 @@ def shuffle_and_rotate_img(img, testcase):
         for x in range(div_w):
             split_imgs.append(img.crop((x*div_size, y*div_size, (x+1)*div_size, (y+1)*div_size)))
 
-    rotate_log = []
+    rotate_log = np.zeros(div_h*div_w, int)
 
     for y in range(div_h):
         for x in range(div_w):
@@ -152,7 +152,7 @@ def shuffle_and_rotate_img(img, testcase):
             direction = random.randint(0, 3)
             if y == 0 and x == 0:
                 direction = 0
-            rotate_log.append(direction)
+            rotate_log[order[idx]] = direction
             img.paste(split_imgs[order[idx]].rotate(direction*90), (x*div_size, y*div_size))
 
     shuffle_log = np.zeros(div_h*div_w, object)

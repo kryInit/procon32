@@ -49,7 +49,7 @@ struct ImageState {
     }
     void dump(ostream& os, Vec2<unsigned int> DIV_NUM) const {
         vector<int> v(DIV_NUM.y*DIV_NUM.x);
-        rep(i,now_size.y) rep(j,now_size.x) v[states[i][j].orig_idx] = states[i][j].rotation_times;
+        rep(i,now_size.y) rep(j,now_size.x) v[i*now_size.x+j] = states[i][j].rotation_times;
         for(const auto& i : v) os << i;
         os << endl;
         rep(i,DIV_NUM.y) {
@@ -120,7 +120,7 @@ struct ImageState {
     Answer convert_answer() {
         Answer ans;
         ans.rotations.resize(now_size.y*now_size.x);
-        rep(i,now_size.y) rep(j,now_size.x) ans.rotations[states[i][j].orig_idx] = states[i][j].rotation_times;
+        rep(i,now_size.y) rep(j,now_size.x) ans.rotations[i*now_size.x+j] = states[i][j].rotation_times;
         rep(i,now_size.y) {
             vector<Vec2<unsigned int>> tmp;
             rep(j,now_size.x) tmp.emplace_back(states[i][j].orig_idx%now_size.x, states[i][j].orig_idx/now_size.x);
