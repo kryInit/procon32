@@ -30,5 +30,5 @@ add_subdirectory(image_restorer)
 # add_subdirectory(build_procedure)
 # add_executable(tmp tmp.cpp)
 
-add_executable(main main.cpp)
-target_link_libraries(main utility)
+#add_executable(main main.cpp)
+#target_link_libraries(main utility)
