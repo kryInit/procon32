@@ -1,7 +1,8 @@
 #pragma once
-#include <image_restorer_lib.hpp>
+#include <answer.hpp>
+#include <settings.hpp>
 
 class ISolver {
 public:
-    virtual Answer solve(double *adjacency, const Settings& settings) = 0;
+    virtual Answer operator()(double *adjacency, const Settings& settings) = 0;
 };

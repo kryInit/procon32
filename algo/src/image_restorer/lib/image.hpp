@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vec.hpp>
-#include "settings.hpp"
+#include <vec3.hpp>
+#include <settings.hpp>
 
 class ImageFragment {
     unsigned int FRAG_SIZE;
@@ -31,4 +31,3 @@ public:
     void dump_perimeter(Vec2<int> idx) const;
     void get_all_perimeter(unsigned int size, RGB *perimeters) const;
 };
-

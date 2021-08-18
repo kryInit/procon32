@@ -1,10 +1,10 @@
-#include "one_pixel_adjacency_evaluator.hpp"
+#include <one_pixel_adjacency_evaluator.hpp>
 
 using namespace std;
 
 #define rep(i,n) for(int i=0; i < static_cast<int>(n); ++i)
 
-void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings& settings, double *adjacency) {
+void OnePixelAdjacencyEvaluator::operator()(const Image& img, const Settings& settings, double *adjacency) {
 
     constexpr unsigned int size = 1;
     auto frag_size = settings.FRAG_SIZE();
@@ -18,7 +18,7 @@ void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings&
         {
             const unsigned int offset = (i*div_num.x*4+j*4+k)*frag_size;
             rep(y, frag_size) {
-                memo[frag_size-y-1] = *(perimeters+offset+y);
+                memo[frag_size-y-1] = static_cast<Vec3<double>>(*(perimeters+offset+y));
             }
         }
         rep(I, div_num.y) rep(J, div_num.x) {
@@ -31,12 +31,13 @@ void OnePixelAdjacencyEvaluator::get_adjacency(const Image& img, const Settings&
             }
             rep(K,4) {
                 const unsigned int offset = (I*div_num.x*4+J*4+K)*frag_size;
-                double std_sum = 0;
+                double var_sum = 0;
                 rep(y,frag_size) {
                     Vec3<double> tmp = static_cast<Vec3<double>>(*(perimeters+offset+y)) - memo[y];
-                    std_sum += tmp.mag();
+                    var_sum += (tmp * tmp).sum() / 3. / 2.;
                 }
-                *now_ptr = std_sum;
+                double var_ave = var_sum / frag_size;
+                *now_ptr = sqrt(var_ave);
                 now_ptr++;
             }
         }

@@ -3,9 +3,7 @@
 namespace Random {
     using uint = unsigned int;
 
-    uint seed[4] = {1,2,3,4};
-
-    void init_rand_seed(uint s);
+    void set_random_state(uint s);
     uint rand_uint();
     double rand_prob();
     uint rand_range(uint r);

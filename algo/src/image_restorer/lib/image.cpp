@@ -1,10 +1,9 @@
-#include "image.hpp"
+#include <image.hpp>
 #include <sstream>
 #include <fstream>
 using namespace std;
 
 #define rep(i,n) for(int i=0; i < static_cast<int>(n); ++i)
-#define repo(i,o,n) for(int i=static_cast<int>(o); i < static_cast<int>(n); ++i)
 
 ImageFragment::ImageFragment() : FRAG_SIZE(0), img_data(nullptr) {}
 ImageFragment::~ImageFragment() {
@@ -14,7 +13,7 @@ ImageFragment::~ImageFragment() {
         img_data = nullptr;
     }
 }
-[[nodiscard]] const unsigned int& ImageFragment::FRAGMENT_SIZE() const { return FRAG_SIZE; }
+const unsigned int& ImageFragment::FRAGMENT_SIZE() const { return FRAG_SIZE; }
 void ImageFragment::load(const string& frag_path, const Settings& settings) {
     if (img_data != nullptr) {
         delete[] *img_data;
@@ -111,11 +110,11 @@ void Image::dump() const {
     }
 }
 
-void Image::dump_perimeter(Vec2<int> idx) const {
+void Image::dump_perimeter(Pos pos) const {
     unsigned int size = 3;
     const unsigned int FRAG_SIZE = img_frags[0][0].FRAGMENT_SIZE();
     RGB *tmp = new RGB[4*FRAG_SIZE*size];
-    img_frags[idx.y][idx.x].get_perimeter(size, tmp);
+    img_frags[pos.y][pos.x].get_perimeter(size, tmp);
 
     rep(k,4) {
         cout << "k: " << k << endl;
@@ -134,4 +133,3 @@ void Image::get_all_perimeter(unsigned int size, RGB *perimeters) const {
         img_frags[i][j].get_perimeter(size, perimeters + (i*DIV_NUM.x + j)*offset);
     }
 }
-
