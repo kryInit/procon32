@@ -8,6 +8,21 @@ on:
       - kr
 
 jobs:
+  job0:
+    name: compile
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: compile
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+        working-directory: ./algo/src
+
+
   job1:
     name: image restorer test
     runs-on: ubuntu-20.04
