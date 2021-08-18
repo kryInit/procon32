@@ -32,8 +32,8 @@ struct ImageState {
         return adjacency_sum / (float)(now_size.y*(now_size.x-1) + (now_size.y-1)*now_size.x);
     }
     void dump_for_human(const Vec2<unsigned int> DIV_NUM) const {
-        cout << "adjacency (sum, ave): (" << adjacency_sum << ", " << adjacency_ave() << ")" << endl;
-        cout << "size: " << now_size << endl;
+        PRINT(adjacency_sum, adjacency_ave());
+        PRINT(now_size);
         rep(i,DIV_NUM.y) {
             rep(j,DIV_NUM.x) {
                 cout << hex << uppercase << states[i][j].orig_idx%DIV_NUM.x << states[i][j].orig_idx/DIV_NUM.x << "(" << (unsigned int)states[i][j].rotation_times << ") ";
@@ -84,11 +84,11 @@ struct ImageState {
     }
     void rotate_180deg() {
         rep(i,now_size.y) rep(j,now_size.x) {
-                int I = now_size.y-i-1;
-                int J = now_size.x-j-1;
-                if (i*now_size.x+j >= I*now_size.x+J) break;
-                swap(states[i][j], states[I][J]);
-            }
+            int I = now_size.y-i-1;
+            int J = now_size.x-j-1;
+            if (i*now_size.x+j >= I*now_size.x+J) break;
+            swap(states[i][j], states[I][J]);
+        }
         rep(i,now_size.y) rep(j,now_size.x) states[i][j].rotate_90deg(2);
     }
     void rotate_270deg() {
@@ -107,6 +107,8 @@ struct ImageState {
     }
 
     [[nodiscard]] vector<ImageFragmentState> get_side(Direction dir) const {
+
+        Utility::exit_with_message("ImageState().get_side is not implemented");
 
         return vector<ImageFragmentState>();
     }
@@ -137,7 +139,7 @@ struct FragmentPair {
     ImageFragmentState l,r;
 
     FragmentPair() : adjacency(), l(), r() {}
-    FragmentPair(float _adjacency, ImageFragmentState _l, ImageFragmentState _r) : adjacency(_adjacency), l(_l), r(_r) {}
+    FragmentPair(float adjacency, ImageFragmentState l, ImageFragmentState r) : adjacency(adjacency), l(l), r(r) {}
     bool operator<(const FragmentPair& another) const {
         return adjacency < another.adjacency;
     }
@@ -196,10 +198,10 @@ void dump_adjacency_info(const double *adjacency, const Settings& settings) {
 }
 void dump_ordered_adjacency_info(const v2fp& ordered_adjacency, const Vec2<unsigned int>& DIV_NUM) {
     rep(i,DIV_NUM.y) rep(j,DIV_NUM.x) rep(k,4) {
-                unsigned int idx = i*DIV_NUM.x*4 + j*4 + k;
-                auto tmp = ordered_adjacency[idx].front().r;
-                cout << "(" << j << ", " << i << ", " << k << ") <=> (" << tmp.orig_idx % DIV_NUM.x << ", " << tmp.orig_idx / DIV_NUM.x << ", " << 3 - tmp.rotation_times << ") : " << ordered_adjacency[idx].front().adjacency << endl;
-            }
+        unsigned int idx = i*DIV_NUM.x*4 + j*4 + k;
+        auto tmp = ordered_adjacency[idx].front().r;
+        cout << "(" << j << ", " << i << ", " << k << ") <=> (" << tmp.orig_idx % DIV_NUM.x << ", " << tmp.orig_idx / DIV_NUM.x << ", " << 3 - tmp.rotation_times << ") : " << ordered_adjacency[idx].front().adjacency << endl;
+    }
 }
 void dump_states(const vector<ImageState>& states, const Vec2<unsigned int>& DIV_NUM, const unsigned int maximum = 1000) {
     unsigned int th = 0;
@@ -230,10 +232,10 @@ v2fp get_ordered_adjacency(const double *adjacency, const Vec2<unsigned int>& DI
 pair<float, ImageFragmentState> get_best_adjacent_fragment(ImageFragmentState frag_state, Direction dir, const array<bool, MAX_DIV_NUM*MAX_DIV_NUM>& placed, const v2fp& ordered_adjacency, const Vec2<unsigned int>& DIV_NUM) {
     const unsigned int idx = frag_state.orig_idx*4 + get_side_idx(frag_state, dir);
     for (const auto& fp : ordered_adjacency[idx]) if (!placed[fp.r.orig_idx]) {
-            ImageFragmentState tmp = fp.r;
-            tmp.rotate_90deg(static_cast<int>(get_dir_offset(Direction::R, dir)));
-            return make_pair(fp.adjacency, tmp);
-        }
+        ImageFragmentState tmp = fp.r;
+        tmp.rotate_90deg(static_cast<int>(get_dir_offset(Direction::R, dir)));
+        return make_pair(fp.adjacency, tmp);
+    }
     cerr << "get best adjacent fragment1" << endl;
     exit(-1);
 }
