@@ -2,17 +2,15 @@
 
 Answer::Answer() : rotations(), orig_idx() {}
 
-void Answer::dump(std::ostream& os) {
-    for(const auto& rotation : rotations) os << rotation;
+std::ostream& operator << (std::ostream& os, const Answer& ans) {
+    for(const auto& rotation : ans.rotations) os << rotation;
     os << std::endl;
-    for(const auto & i : orig_idx) {
-        for(size_t j=0; j<i.size(); ++j) {
-            os << std::hex << std::uppercase << i[j].x << i[j].y;
-            if (j+1 != i.size()) os << " ";
+    for(size_t i=0; i<ans.orig_idx.size(); ++i) {
+        for(size_t j=0; j<ans.orig_idx[i].size(); ++j) {
+            os << std::hex << std::uppercase << ans.orig_idx[i][j].x << ans.orig_idx[i][j].y;
+            if (j+1 != ans.orig_idx[i].size()) os << " ";
         }
-        os << std::endl;
+        if (i+1 != ans.orig_idx.size()) os << std::endl;
     }
-}
-void Answer::dump() {
-    dump(std::cout);
+    return os;
 }

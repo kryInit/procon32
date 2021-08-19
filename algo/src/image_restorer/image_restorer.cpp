@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
     Answer ans = solve<OnePixelAdjacencyEvaluator, SideBeamSearchSolver>(img, settings);
     string ans_path = string(argv[1]) + "/original_state.txt";
     std::ofstream ofs(ans_path);
-    ans.dump();
-    ans.dump(ofs);
+    ofs << ans << endl;
+
+    cout << ans << endl;
 }
