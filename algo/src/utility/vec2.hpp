@@ -99,13 +99,6 @@ template<class T> struct Vec2 {
     [[nodiscard]] int pos2idx(int w) const { return y * w + x; }
     static int pos2idx(Pos p, int w) { return p.pos2idx(w); }
     static Pos idx2pos(int idx, int w) { return {idx%w, idx/w}; }
-
-    static constexpr std::array<Pos, 4> get_neighborhood4() {
-        return { Pos(Direction::U), Pos(Direction::R), Pos(Direction::D), Pos(Direction::L) };
-    }
-    static constexpr std::array<Pos, 8> get_neighborhood8() {
-        return { Pos(Direction::U), Pos(Direction::U) + Pos(Direction::R), Pos(Direction::R), Pos(Direction::R) + Pos(Direction::D), Pos(Direction::D), Pos(Direction::D) + Pos(Direction::L), Pos(Direction::L), Pos(Direction::L) + Pos(Direction::U) };
-    }
 };
 
 template<class T> std::istream& operator >> (std::istream& is, Vec2<T>& v) {

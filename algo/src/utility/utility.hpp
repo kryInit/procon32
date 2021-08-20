@@ -11,6 +11,7 @@
 #include <cmath>
 #include <thread>
 #include <iostream>
+#include <functional>
 #include <type_traits>
 
 #include <vec2.hpp>
@@ -247,6 +248,7 @@ namespace Utility {
     inline string show(const string& s) { return s; }
     template<class T> string show(T a) { stringstream ss; ss << a; return ss.str(); }
     inline string show(unsigned char a) { return show((unsigned)a); }
+    inline string show(const Path& p) { stringstream ss; ss << p; return ss.str(); }
 
     template<class T> string show(Vec2<T> v) { return "(" + show(v.x) + ", " + show(v.y) + ")"; }
     template<class T> string show(Vec3<T> v) { return "(" + show(v.x) + ", " + show(v.y) + ", " + show(v.y) + ")"; }
@@ -360,5 +362,50 @@ namespace Utility {
     }
     template<class T> void shuffle(vector<T>& v) {
         for(size_t i = v.size(); --i>0;) swap(v[i], v[Random::rand_range(i)]);
+    }
+
+    template<class T, class S, class Functor> vector<T> get_mapped(const vector<S>& v, const Functor& func) {
+        vector<T> result; result.reserve(v.size());
+        for(const auto& x : v) result.push_back(func(x));
+        return result;
+    }
+    template<class T, class S, class Functor> vector<vector<T>> get_mapped(const vector<vector<S>>& v, const Functor& func) {
+        vector<vector<T>> result; result.reserve(v.size());
+        for(const auto& x : v) result.push_back(get_mapped<T>(x, func));
+        return result;
+    }
+    template<class T, class S, size_t N, class Functor> constexpr array<T,N> get_mapped(const array<S,N>& a, const Functor& func) {
+        array<T,N> result;
+        rep(i,a.size()) result[i] = func(a[i]);
+        return result;
+    }
+    template<class T, class S, size_t N, size_t M, class Functor> constexpr array<array<T,N>,M> get_mapped(const array<array<S, N>, M>& a, const Functor& func) {
+        array<array<T,N>,M> result;
+        rep(i,a.size()) result[i] = get_mapped<T>(a[i], func);
+        return result;
+    }
+
+
+    template<class T, class Functor> void map(vector<T>& v, const Functor& func) {
+        for(auto& x : v) func(x);
+    }
+    template<class T, class Functor> void map(vector<vector<T>>& v, const Functor& func) {
+        for(auto& x : v) map(x,func);
+    }
+    template<class T, size_t N, class Functor> void map(array<T,N>& a, const Functor& func) {
+        for(auto& x : a) func(x);
+    }
+    template<class T, size_t N, size_t M, class Functor> void map(array<array<T, N>, M>& a, const Functor& func) {
+        for(auto& x : a) map(x,func);
+    }
+
+    static constexpr std::array<Pos, 4> get_neighborhood4_pos() {
+        return { Pos(Direction::U), Pos(Direction::R), Pos(Direction::D), Pos(Direction::L) };
+    }
+    static constexpr std::array<Pos, 8> get_neighborhood8_pos() {
+        return { Pos(Direction::U), Pos(Direction::U) + Pos(Direction::R), Pos(Direction::R), Pos(Direction::R) + Pos(Direction::D), Pos(Direction::D), Pos(Direction::D) + Pos(Direction::L), Pos(Direction::L), Pos(Direction::L) + Pos(Direction::U) };
+    }
+    static constexpr std::array<Direction, 4> get_neighborhood4_dir() {
+        return { Direction::U, Direction::R, Direction::D, Direction::L };
     }
 }

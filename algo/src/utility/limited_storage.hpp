@@ -32,14 +32,14 @@ private:
 
     const size_t max_storage_size;
     size_t pushed_count;
-    std::queue<Index> poped;
+    std::queue<Index> popped;
     std::queue<Ticket> pushed;
     std::vector<Unit> storage;
 
     size_t get_insertable_storage_idx() {
-        if (!poped.empty()) {
-            Index idx = poped.front();
-            poped.pop();
+        if (!popped.empty()) {
+            Index idx = popped.front();
+            popped.pop();
             return idx;
         }
         else if (storage.size() < max_storage_size) return storage.size();
@@ -54,7 +54,7 @@ private:
 public:
     explicit LimitedStorage(size_t max_storage_size) : max_storage_size(max_storage_size), pushed_count(0), storage() {}
     void reserve(size_t n) { storage.reserve(std::min(n, max_storage_size)); }
-    Ticket push(const T& data) {
+    const Ticket push(const T& data) {
         size_t key = pushed_count++;
         Index idx = get_insertable_storage_idx();
         if (idx == storage.size()) storage.emplace_back(key, data);
@@ -62,10 +62,21 @@ public:
         pushed.emplace(key, idx);
         return Ticket(key, idx);
     }
-    std::optional<T> pop(Ticket tkt) {
+    std::optional<T> pop(const Ticket& tkt) {
         if (storage[tkt.storage_idx].key != tkt.key) return std::nullopt;
-        poped.push(tkt.storage_idx);
+        popped.push(tkt.storage_idx);
+        storage[tkt.storage_idx].key = -1;
         return move(storage[tkt.storage_idx].data);
+    }
+    [[nodiscard]] std::optional<T> get(const Ticket& tkt) const {
+        if (storage[tkt.storage_idx].key != tkt.key) return std::nullopt;
+        return storage[tkt.storage_idx].data;
+    }
+    bool erase(const Ticket& tkt) {
+        if (storage[tkt.storage_idx].key != tkt.key) return false;
+        popped.push(tkt.storage_idx);
+        storage[tkt.storage_idx].key = -1;
+        return true;
     }
     void dump(std::ostream& os) {
         os << "limited storage dump";

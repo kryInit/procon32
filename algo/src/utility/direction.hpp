@@ -31,6 +31,9 @@ struct Direction {
     [[nodiscard]] constexpr DirectionType get_dir_rotated_cw() const;
     [[nodiscard]] constexpr DirectionType get_dir_reversed() const;
     [[nodiscard]] constexpr DirectionType get_dir_rotated_ccw() const;
+
+    [[nodiscard]] constexpr bool is_horizontal() const;
+    [[nodiscard]] constexpr bool is_vertical() const;
 };
 
 using Path = std::vector<Direction>;
@@ -78,3 +81,7 @@ inline constexpr Direction::DirectionType Direction::get_dir_rotated_ccw(int tim
 inline constexpr Direction::DirectionType Direction::get_dir_rotated_cw()    const { return get_dir_rotated_cw(1); }
 inline constexpr Direction::DirectionType Direction::get_dir_reversed()      const { return get_dir_reversed(1); }
 inline constexpr Direction::DirectionType Direction::get_dir_rotated_ccw()   const { return get_dir_rotated_ccw(1); }
+
+inline constexpr bool Direction::is_horizontal() const { return type == R || type == L; }
+inline constexpr bool Direction::is_vertical() const { return type == U || type == D; }
+

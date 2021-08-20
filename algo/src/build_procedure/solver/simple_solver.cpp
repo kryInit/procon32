@@ -67,7 +67,8 @@ Path calc_path(const Pos s, const Pos g, const Vec2<int> border, const vector<Po
     }
 
     if (!keep_out[g.y][g.x]) {
-        Utility::exit_with_message(Utility::concat("[calc_path] keep_out[g.y][g.x]",keep_out[g.y][g.x]));
+        // 例外処理に対応するためにからのpathを返している
+        return {};
     }
 
     // 経路復元
@@ -103,12 +104,13 @@ Path move_frag_by_selected_frag(Pos &selected_pos, Pos target, Pos destination, 
         loop_move(next, dir, div_num);
 
         exclusions.push_back(target);
-        Path tmp_route = calc_path(selected_pos, next, border, exclusions, div_num);
-        tmp_route.push_back(dir.get_dir_reversed());
+        Path tmp_path = calc_path(selected_pos, next, border, exclusions, div_num);
         exclusions.pop_back();
+        if (selected_pos != next && tmp_path.empty()) break;
+        tmp_path.push_back(dir.get_dir_reversed());
 
-        loop_move(selected_pos, tmp_route, now_orig_pos, div_num);
-        join_path(path, tmp_route);
+        loop_move(selected_pos, tmp_path, now_orig_pos, div_num);
+        join_path(path, tmp_path);
         target = next;
     }
     return path;
@@ -127,7 +129,7 @@ Path move_frag_by_selected_frag(Pos &selected_pos, Pos target, Pos destination, 
  * ------
  * t1 s |
  *    t0|
- * めんどくさいのでt1を最初に(0,0)に追いやることにした
+ * 適当に対応させた
  *
 */
 
@@ -140,18 +142,19 @@ Path align_outermost_row(OriginalPositions &now_orig_pos, Vec2<int> border, Pos 
         join_path(path, move_frag_by_selected_frag(selected_pos, target, destination, now_orig_pos, border, exclusions, div_num));
         exclusions.push_back(destination);
     }
-    {
-        Pos destination = Vec2(0, 0);
-        Pos target = get_pos(Vec2(1, border.y-1), now_orig_pos, div_num);
-        join_path(path, move_frag_by_selected_frag(selected_pos, target, destination, now_orig_pos, border, exclusions, div_num));
-    }
     rep(j,2) {
         Pos destination = Vec2(1, border.y-1-j);
         Pos target = get_pos(Vec2(j, border.y-1), now_orig_pos, div_num);
         join_path(path, move_frag_by_selected_frag(selected_pos, target, destination, now_orig_pos, border, exclusions, div_num));
         exclusions.push_back(destination);
     }
-    {
+    if (selected_pos.y == border.y-1 && selected_pos.x == 0 && now_orig_pos[border.y-2][0] == Vec2(1, border.y-1)) {
+        // RUULDRDLUURDLDRU
+        constexpr Direction U = Direction::U, R = Direction::R, D = Direction::D, L = Direction::L;
+        Path tmp_path = { R,U,U,L,D,R,D,L,U,U,R,D,L,D,R,U };
+        loop_move(selected_pos, tmp_path, now_orig_pos, div_num);
+        join_path(path, tmp_path);
+    } else {
         Path tmp_path = calc_path(selected_pos, Vec2(0, border.y-1), border, exclusions, div_num);
         loop_move(selected_pos, tmp_path, now_orig_pos, div_num);
         join_path(path, tmp_path);
@@ -171,18 +174,19 @@ Path align_outermost_column(OriginalPositions &now_orig_pos, Vec2<int> border, P
         join_path(path, move_frag_by_selected_frag(selected_pos, target, destination, now_orig_pos, border, exclusions, div_num));
         exclusions.push_back(destination);
     }
-    {
-        Pos destination = Vec2(0, 0);
-        Pos target = get_pos(Vec2(border.x-1, 1), now_orig_pos, div_num);
-        join_path(path, move_frag_by_selected_frag(selected_pos, target, destination, now_orig_pos, border, exclusions, div_num));
-    }
     rep(i,2) {
         Pos destination = Vec2(border.x-1-i, 1);
         Pos target = get_pos(Vec2(border.x-1, i), now_orig_pos, div_num);
         join_path(path, move_frag_by_selected_frag(selected_pos, target, destination, now_orig_pos, border, exclusions, div_num));
         exclusions.push_back(destination);
     }
-    {
+    if (selected_pos.x == border.x-1 && selected_pos.y == 0 && now_orig_pos[0][border.x-2] == Vec2(border.x-1,1)) {
+        // DLLURDRULLDRURDL
+        constexpr Direction U = Direction::U, R = Direction::R, D = Direction::D, L = Direction::L;
+        Path tmp_path = { D,L,L,U,R,D,R,U,L,L,D,R,U,R,D,L };
+        loop_move(selected_pos, tmp_path, now_orig_pos, div_num);
+        join_path(path, tmp_path);
+    } else {
         Path tmp_path = calc_path(selected_pos, Vec2(border.x-1, 0), border, exclusions, div_num);
         loop_move(selected_pos, tmp_path, now_orig_pos, div_num);
         join_path(path, tmp_path);
