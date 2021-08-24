@@ -916,7 +916,176 @@ void check_ans(OriginalPositions initial_orig_pos, const Procedures &procs, cons
     }
 }
 
+
+int calc_dist_toraly(const Pos& p1, const Pos& p2, const Context& ctx) {
+    const int dx = abs(p1.x - p2.x);
+    const int dy = abs(p1.y - p2.y);
+    return min(dx, ctx.div_num.x-dx) + min(dy, ctx.div_num.y-dy);
+}
+
+int calc_penalty(const Pos& p, const OriginalPositions& original_positions, const Context& ctx) {
+    const int dist = calc_dist_toraly(p, original_positions[p.y][p.x], ctx);
+    return dist*dist;
+}
+
+void move(Pos& p, const Direction& dir, OriginalPositions& now_orig_pos, const Context& ctx) {
+    Pos next = get_moved_toraly_pos(p, dir, ctx);
+    swap(now_orig_pos[p.y][p.x], now_orig_pos[next.y][next.x]);
+    p = next;
+}
+void revert_move(Pos& p, const Direction& dir, OriginalPositions& now_orig_pos, const Context& ctx) {
+    move(p, dir.get_dir_reversed(), now_orig_pos, ctx);
+}
+int move_and_calc_diff_penalty(Pos& p, const Direction& dir, OriginalPositions& now_orig_pos, const Context& ctx) {
+    int diff_penalty = 0;
+    Pos next = get_moved_toraly_pos(p, dir, ctx);
+    diff_penalty -= calc_penalty(next, now_orig_pos, ctx);
+    swap(now_orig_pos[p.y][p.x], now_orig_pos[next.y][next.x]);
+    diff_penalty += calc_penalty(p, now_orig_pos, ctx);
+    p = next;
+    return diff_penalty;
+}
+int revert_move_and_calc_diff_penalty(Pos& p, const Direction& dir, OriginalPositions& now_orig_pos, const Context& ctx) {
+    return move_and_calc_diff_penalty(p, dir.get_dir_reversed(), now_orig_pos, ctx);
+}
+
+void sort_roughly(OriginalPositions& now_orig_pos, const Context& ctx) {
+    OriginalPositions original_orig_pos = now_orig_pos;
+    const int dnx = ctx.div_num.x;
+    const int dny = ctx.div_num.y;
+    double coef = 0.;
+
+    int now_penalty = 0;
+    rep(i,dny) rep(j,dnx) if (i+j) now_penalty += calc_penalty(Vec2(j,i), now_orig_pos, ctx);
+    PRINT(now_penalty);
+
+    int loop_count = 0;
+    int prev_upgrade_time = -1;
+
+    int best_penalty = now_penalty;
+    Path best_path;
+
+    Pos moving_pos;
+    Path now_path;
+    TimeManager tm(10000);
+
+    PRINT(now_penalty);
+    while(tm.in_time_limit()) {
+        PRINT(loop_count, now_path.size());
+        loop_count++;
+
+        // serach additional path
+        constexpr int depth = 9;
+        int min_diff_penalty = INT_MAX;
+        Path best_addnl_path;
+
+        int now_diff_penalty = 0;
+        Path now_addnl_path; now_addnl_path.reserve(depth);
+        while(true) {
+            if (now_addnl_path.size() == depth) {
+                while(!now_addnl_path.empty() && now_addnl_path.back() == Direction::L) {
+                    Direction back_rev_dir = now_addnl_path.back().get_dir_reversed();
+                    now_diff_penalty += revert_move_and_calc_diff_penalty(moving_pos, now_addnl_path.back(), now_orig_pos, ctx);
+                    now_addnl_path.pop_back();
+                }
+                if (now_addnl_path.empty()) break;
+                now_diff_penalty += revert_move_and_calc_diff_penalty(moving_pos, now_addnl_path.back(), now_orig_pos, ctx);
+                now_addnl_path.back().rotate_cw();
+                now_diff_penalty += move_and_calc_diff_penalty(moving_pos, now_addnl_path.back(), now_orig_pos, ctx);
+            } else {
+                constexpr Direction dir = Direction::U;
+                now_addnl_path.push_back(dir);
+                now_diff_penalty += move_and_calc_diff_penalty(moving_pos, dir, now_orig_pos, ctx);
+            }
+
+            if (min_diff_penalty > now_diff_penalty + now_addnl_path.size() * coef) {
+                min_diff_penalty = now_diff_penalty + now_addnl_path.size() * coef;
+                best_addnl_path = now_addnl_path;
+            }
+        }
+
+        if (min_diff_penalty < 0) { // if I found good additional path
+            // add path and change
+            for(const auto& dir : best_addnl_path) move(moving_pos, dir, now_orig_pos, ctx);
+            join_path(now_path, best_addnl_path);
+            now_penalty += min_diff_penalty;
+            if (best_penalty > now_penalty) {
+                best_penalty = now_penalty;
+                best_path = now_path;
+                PRINT(loop_count, best_penalty);
+                prev_upgrade_time = loop_count;
+            }
+        } else if (!now_path.empty()) { // if I couldn't find additional path
+            // kick
+            if (loop_count - prev_upgrade_time > 100) {
+                now_path = best_path;
+                now_penalty = best_penalty;
+                now_orig_pos = original_orig_pos;
+                moving_pos = Pos();
+                for(const auto& dir : now_path) move(moving_pos, dir, now_orig_pos, ctx);
+                prev_upgrade_time = loop_count;
+            } else {
+                now_penalty -= now_path.size() * coef;
+                int delete_num = Random::simple_exp_rand(now_path.size());
+                rep(_,delete_num) {
+                    now_penalty += revert_move_and_calc_diff_penalty(moving_pos, now_path.back(), now_orig_pos, ctx);
+                    now_path.pop_back();
+                }
+                now_penalty += now_path.size() * coef;
+            }
+        } else break;
+    }
+    PRINT(loop_count);
+    PRINT(best_penalty);
+    PRINT(best_path.size());
+    PRINT(best_path);
+
+    moving_pos = Pos();
+    now_orig_pos = original_orig_pos;
+    for(const auto& dir : best_path) move(moving_pos, dir, now_orig_pos, ctx);
+    int tmp_penalty = - calc_penalty(moving_pos, now_orig_pos, ctx);
+    rep(i,dny) rep(j,dnx) tmp_penalty += calc_penalty(Pos(j,i), now_orig_pos, ctx);
+    PRINT(tmp_penalty);
+    PRINT(tmp_penalty + best_path.size()*coef);
+    PRINT(moving_pos);
+    rep(i, dny) {
+        rep(j,dnx) {
+            int penalty = calc_penalty(Vec2(j,i), now_orig_pos, ctx);
+            if (penalty == 0) cout << "  .";
+            else cout << setw(3) << calc_penalty(Vec2(j,i), now_orig_pos, ctx);
+        }
+        cout << endl;
+    }
+    cout << endl;
+}
+
+/*/
+ *
+ * 2x2の場合は完全解を求めることが可能
+ * 3x3もギリいけるかも
+ * でも3x3は実用性薄そう、一応制限にもなってしまうし
+ *
+ * 最初に分ける点を決め打って探索した方が良いのかもしれない
+ * 実は盤外移動するメリットはあんまりない？
+ *
+ * 最初に適当に揃える時には盤外移動を考慮するけどちゃんと揃えるときは移動しないようにしたほうが楽なのかもしれない
+ * 偶奇性の調整は最初でやっておくと良いかも
+ *
+ *
+ *
+/*/
+
+
 Procedures KrSolver::operator()(const OriginalPositions& original_positions, const Settings& settings) {
+    const Context ctx( static_cast<Vec2<int>>(settings.DIV_NUM())
+                       , static_cast<int>(settings.SELECTABLE_TIMES())
+                       , static_cast<int>(settings.CHOICE_COST())
+                       , static_cast<int>(settings.SWAP_COST()) );
+
+    OriginalPositions now_orig_pos = original_positions;
+    sort_roughly(now_orig_pos, ctx);
+    dump_original_positions(now_orig_pos, ctx);
+
     int loop_count = 0;
     while(++loop_count && Random::rand_range(256) != 1) {}
     PRINT(loop_count);
@@ -931,12 +1100,6 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
     PRINT(sizeof(unsigned char));
     PRINT(sizeof(bool));
 
-    auto now_orig_pos = original_positions;
-
-    const Context ctx( static_cast<Vec2<int>>(settings.DIV_NUM())
-                     , static_cast<int>(settings.SELECTABLE_TIMES())
-                     , static_cast<int>(settings.CHOICE_COST())
-                     , static_cast<int>(settings.SWAP_COST()) );
 
     auto best_procs_for_2x2 = get_best_procs_for_2x2(ctx);
 
@@ -976,6 +1139,7 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
     double min_cost = 1e20;
     Procedures best_procs;
 
+/*
     int count = 0;
     rep(i,4096) {
         if (!best_procs_for_2x2[i].empty()) {
@@ -993,6 +1157,8 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
         }
     }
     PRINT(count);
+*/
+
 /*
     rep(i,dny) rep(j,dnx) rep(I,dny) rep(J,dnx) {
         PRINT(i, j, I, J);
@@ -1117,7 +1283,8 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
     cout << min_cost << endl;
     cout << best_procs << endl;
 
-    check_ans(original_positions, best_procs, ctx);
+//    check_ans(original_positions, best_procs, ctx);
+    check_ans(now_orig_pos, best_procs, ctx);
 
     return best_procs;
 }
