@@ -235,7 +235,64 @@ class State {
         return nullopt;
     }
     [[nodiscard]] optional<Path> calc_nice_path(const Pos& s, const Pos& t, const Context& ctx) const {
+        const int div_num_x = ctx.div_num.x, div_num_y = ctx.div_num.y;
+        deque<pair<Pos, Path>> que;
+        array<bool, MAX_DIV_NUM> visited{};
 
+        if (state[s.pos2idx(div_num_x)] != ordinary) {
+            auto message = Utility::concat("[calc_nice_path]: state[s_idx] is ", state[s.pos2idx(div_num_x)]);
+            Utility::exit_with_message(message);
+        }
+        if (state[t.pos2idx(div_num_x)] != ordinary) {
+            auto message = Utility::concat("[calc_nice_path]: state[t_idx] is ", state[t.pos2idx(div_num_x)]);
+            Utility::exit_with_message(message);
+        }
+
+        que.emplace_back(s, Path());
+        while(!que.empty()) {
+            Path path = que.front().second;
+            const Pos now = que.front().first;
+            const Index idx = now.pos2idx(div_num_x);
+            que.pop_front();
+            if (now == t) return path;
+            if (visited[idx]) continue;
+            visited[idx] = true;
+            for(const auto& dir : Utility::get_neighborhood4_dir()) {
+                Pos next = get_moved_toraly_pos(now, dir, ctx);
+                Pos orig_next = Pos::idx2pos(now_orig_pos[next.pos2idx(div_num_x)], div_num_x);
+                if (state[next.pos2idx(div_num_x)] == ordinary) {
+                    path.push_back(dir);
+
+                    bool back = 0;
+
+                    {
+                        int now_to_orig_next_dist = 0;
+                        int next_to_orig_next_dist = 0;
+
+                        Pos shifted_now = Pos((now.x-first_sorted_pos.x+div_num_x)%div_num_x, (now.y-first_sorted_pos.y+div_num_y)%div_num_y);
+                        Pos shifted_next = Pos((next.x-first_sorted_pos.x+div_num_x)%div_num_x, (next.y-first_sorted_pos.y+div_num_y)%div_num_y);
+                        Pos shifted_orig_next = Pos((orig_next.x-first_sorted_pos.x+div_num_x)%div_num_x, (orig_next.y-first_sorted_pos.y+div_num_y)%div_num_y);
+
+                        if (shifted_now.x == 0) now_to_orig_next_dist += min(shifted_orig_next.x, div_num_x-shifted_orig_next.x);
+                        else now_to_orig_next_dist += abs(shifted_now.x - shifted_orig_next.x);
+                        if (shifted_now.x == 0) now_to_orig_next_dist += min(shifted_orig_next.y, div_num_x-shifted_orig_next.y);
+                        else now_to_orig_next_dist += abs(shifted_now.y - shifted_orig_next.y);
+
+                        if (shifted_next.x == 0) next_to_orig_next_dist += min(shifted_orig_next.x, div_num_x-shifted_orig_next.x);
+                        else next_to_orig_next_dist += abs(shifted_next.x - shifted_orig_next.x);
+                        if (shifted_next.x == 0) next_to_orig_next_dist += min(shifted_orig_next.y, div_num_x-shifted_orig_next.y);
+                        else next_to_orig_next_dist += abs(shifted_next.y - shifted_orig_next.y);
+
+                        back = now_to_orig_next_dist > next_to_orig_next_dist;
+                    }
+
+                    if (back) que.emplace_back(next, path);
+                    else que.emplace_front(next, path);
+                    path.pop_back();
+                }
+            }
+        }
+        return nullopt;
     }
 
     tuple<Path, bool> move_target_to_destination_by_selected_pos(const Pos& target, const Pos& destination, const Context& ctx) {
@@ -246,12 +303,12 @@ class State {
         Pos now = target;
         Path path;
         PRINT(target, destination, moving_pos);
-        Path targets_path = calc_shortest_path(target, destination, ctx).value();
+        Path targets_path = calc_nice_path(target, destination, ctx).value();
         for(const auto& dir : targets_path) {
             Pos next = get_moved_toraly_pos(now, dir, ctx);
             state[now.pos2idx(div_num_x)] = unmovable;
             PRINT(now, next, moving_pos);
-            optional<Path> optional_additional_path = calc_shortest_path(moving_pos, next, ctx);
+            optional<Path> optional_additional_path = calc_nice_path(moving_pos, next, ctx);
             state[now.pos2idx(div_num_x)] = ordinary;
             if (optional_additional_path) {
                 Path& additional_path = optional_additional_path.value();
@@ -349,7 +406,7 @@ class State {
         if (should_adjust_parity) { /* todo: 書く */ }
 
         PRINT(target, destination3);
-        auto opt_path = calc_shortest_path(moving_pos, destination3, ctx);
+        auto opt_path = calc_nice_path(moving_pos, destination3, ctx);
         if (!opt_path) Utility::exit_with_message("[move_to_current_pos]: 3");
         move_current_selected_pos(opt_path.value(), ctx);
         join_path(path, opt_path.value());
@@ -629,7 +686,8 @@ public:
                 Index idx = Vec2(j,i).pos2idx(ctx.div_num.x);
                 stringstream ss;
                 ss << hex << uppercase << now_orig_pos[idx] % ctx.div_num.x << now_orig_pos[idx] / ctx.div_num.x;
-                cout << ss.str() << "'" << (unsigned)state[idx] << " ";
+                if (state[idx] == 0) cout << ss.str() << "'  ";
+                else cout << ss.str() << "'# ";
             }
             cout << endl;
         }
@@ -880,33 +938,6 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
 
     check_ans(original_positions, procedures, ctx);
 
-/*
-    Pos p = Vec2(1, 0);
-
-    dump_original_positions(now_orig_pos, ctx);
-    auto f = is_completable(now_orig_pos, p, ctx);
-    PRINT(f);
-
-
-    while(true) {
-        char c;
-        cout << ">> ";
-        cin >> c;
-        Direction dir;
-        if (c == 'j' || c == 's') dir = Direction::D;
-        else if (c == 'k' || c == 'w') dir = Direction::U;
-        else if (c == 'h' || c == 'a') dir = Direction::L;
-        else if (c == 'l' || c == 'd') dir = Direction::R;
-        else break;
-        swap(p, dir, now_orig_pos, ctx);
-
-        dump_original_positions(now_orig_pos, ctx);
-        auto f = is_completable(now_orig_pos, p, ctx);
-        PRINT(f);
-        DUMP();
-    }
-
-*/
     DUMP("hi");
-    return {};
+    return procedures;
 }
