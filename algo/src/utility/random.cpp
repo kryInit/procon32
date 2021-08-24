@@ -22,7 +22,7 @@ uint Random::rand_uint() {
 }
 
 double Random::rand_prob() {
-    return static_cast<double>(rand_uint()) / static_cast<double>(UINT_MAX+1);
+    return static_cast<double>(rand_uint()) / (static_cast<double>(UINT_MAX)+1.);
 }
 
 uint Random::rand_range(uint r) {
