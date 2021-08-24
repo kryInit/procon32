@@ -2,7 +2,8 @@
 #include <bits/stdc++.h>
 #include <utility>
 #include <comparable_data.hpp>
-#include <timing_device.hpp>
+#include <time_manager.hpp>
+#include <limited_storage.hpp>
 #include <utility.hpp>
 
 using namespace std;
@@ -236,8 +237,10 @@ class State {
     }
     [[nodiscard]] optional<Path> calc_nice_path(const Pos& s, const Pos& t, const Context& ctx) const {
         const int div_num_x = ctx.div_num.x, div_num_y = ctx.div_num.y;
-        deque<pair<Pos, Path>> que;
-        array<bool, MAX_DIV_NUM> visited{};
+        static deque<pair<Pos, Path>> que;
+        static array<bool, MAX_DIV_NUM> visited{};
+        que.clear();
+        rep(i,div_num_x*div_num_y) visited[i] = false;
 
         if (state[s.pos2idx(div_num_x)] != ordinary) {
             auto message = Utility::concat("[calc_nice_path]: state[s_idx] is ", state[s.pos2idx(div_num_x)]);
@@ -273,6 +276,7 @@ class State {
                         Pos shifted_next = Pos((next.x-first_sorted_pos.x+div_num_x)%div_num_x, (next.y-first_sorted_pos.y+div_num_y)%div_num_y);
                         Pos shifted_orig_next = Pos((orig_next.x-first_sorted_pos.x+div_num_x)%div_num_x, (orig_next.y-first_sorted_pos.y+div_num_y)%div_num_y);
 
+/*
                         if (shifted_now.x == 0) now_to_orig_next_dist += min(shifted_orig_next.x, div_num_x-shifted_orig_next.x);
                         else now_to_orig_next_dist += abs(shifted_now.x - shifted_orig_next.x);
                         if (shifted_now.x == 0) now_to_orig_next_dist += min(shifted_orig_next.y, div_num_x-shifted_orig_next.y);
@@ -282,6 +286,13 @@ class State {
                         else next_to_orig_next_dist += abs(shifted_next.x - shifted_orig_next.x);
                         if (shifted_next.x == 0) next_to_orig_next_dist += min(shifted_orig_next.y, div_num_x-shifted_orig_next.y);
                         else next_to_orig_next_dist += abs(shifted_next.y - shifted_orig_next.y);
+*/
+                        now_to_orig_next_dist += abs(shifted_now.x - shifted_orig_next.x);
+                        now_to_orig_next_dist += abs(shifted_now.y - shifted_orig_next.y);
+
+                        next_to_orig_next_dist += abs(shifted_next.x - shifted_orig_next.x);
+                        next_to_orig_next_dist += abs(shifted_next.y - shifted_orig_next.y);
+
 
                         back = now_to_orig_next_dist > next_to_orig_next_dist;
                     }
@@ -302,12 +313,12 @@ class State {
         }
         Pos now = target;
         Path path;
-        PRINT(target, destination, moving_pos);
+//        PRINT(target, destination, moving_pos);
         Path targets_path = calc_nice_path(target, destination, ctx).value();
         for(const auto& dir : targets_path) {
             Pos next = get_moved_toraly_pos(now, dir, ctx);
             state[now.pos2idx(div_num_x)] = unmovable;
-            PRINT(now, next, moving_pos);
+//            PRINT(now, next, moving_pos);
             optional<Path> optional_additional_path = calc_nice_path(moving_pos, next, ctx);
             state[now.pos2idx(div_num_x)] = ordinary;
             if (optional_additional_path) {
@@ -327,7 +338,7 @@ class State {
         Pos destination = Pos::idx2pos(now_orig_pos[target.pos2idx(div_num_x)], div_num_x);
         auto [path, succeeded] = move_target_to_destination_by_selected_pos(target, destination, ctx);
         if (succeeded) {
-            PRINT(path);
+//            PRINT(path);
             procedures.back().join_path(path);
             intentionally_sorted_count++;
             state[destination.pos2idx(div_num_x)] = sorted;
@@ -362,13 +373,13 @@ class State {
         Path path, tmp_path;
         bool succeeded;
 
-        PRINT(target, destination1);
+//        PRINT(target, destination1);
         tie(tmp_path, succeeded) = move_target_to_destination_by_selected_pos(target, destination1, ctx);
         if (!succeeded) Utility::exit_with_message("[move_to_current_pos]: 1");
         join_path(path, tmp_path);
         state[destination1.pos2idx(div_num_x)] = unmovable;
 
-        PRINT(target, destination2);
+//        PRINT(target, destination2);
         Pos now_buddy = get_now_pos_by_original_pos(orig_buddy, ctx);
         tie(tmp_path, succeeded) = move_target_to_destination_by_selected_pos(now_buddy, destination2, ctx);
         join_path(path, tmp_path);
@@ -395,7 +406,7 @@ class State {
             move_current_selected_pos(tmp_path, ctx);
             join_path(path, tmp_path);
 
-            PRINT(path);
+//            PRINT(path);
             procedures.back().join_path(path);
             intentionally_sorted_count += 2;
             state[orig_target.pos2idx(div_num_x)] = sorted;
@@ -405,13 +416,13 @@ class State {
 
         if (should_adjust_parity) { /* todo: 書く */ }
 
-        PRINT(target, destination3);
+//        PRINT(target, destination3);
         auto opt_path = calc_nice_path(moving_pos, destination3, ctx);
         if (!opt_path) Utility::exit_with_message("[move_to_current_pos]: 3");
         move_current_selected_pos(opt_path.value(), ctx);
         join_path(path, opt_path.value());
 
-        PRINT("4");
+//        PRINT("4");
         state[destination1.pos2idx(div_num_x)] = ordinary;
         state[destination2.pos2idx(div_num_x)] = ordinary;
 
@@ -419,7 +430,7 @@ class State {
         move_current_selected_pos(tmp_path, ctx);
         join_path(path, tmp_path);
 
-        PRINT(path);
+//        PRINT(path);
         procedures.back().join_path(path);
         intentionally_sorted_count += 2;
         state[orig_target.pos2idx(div_num_x)] = sorted;
@@ -427,14 +438,17 @@ class State {
     }
 
 public:
-    State(const OriginalPositions& original_positions, const Pos first_selected_pos, const Context& ctx)
-        : intentionally_sorted_count(), procedures(), moving_pos(first_selected_pos), first_sorted_pos(-1,-1), state(), now_orig_pos() {
+    State() = default;
+    State(const OriginalPositions& original_positions, const Pos first_selected_pos, const Pos first_target_pos, const Context& ctx)
+        : intentionally_sorted_count(), procedures(), moving_pos(first_selected_pos), first_sorted_pos(original_positions[first_target_pos.y][first_target_pos.x]), state(), now_orig_pos() {
         procedures.emplace_back(first_selected_pos);
         rep(i, ctx.div_num.y) rep(j, ctx.div_num.x) {
             const Index now_idx = Vec2(j,i).pos2idx(ctx.div_num.x);
             const Index orig_idx = original_positions[i][j].pos2idx(ctx.div_num.x);
             now_orig_pos[now_idx] = orig_idx;
         }
+
+        move_to_correct_pos(first_target_pos, ctx);
     }
 
     struct TransitionType {
@@ -449,7 +463,15 @@ public:
     };
 
     [[nodiscard]] tuple<double, size_t> evaluate(const Context& ctx) const {
+        // todo: ちゃんと書く, A*探索みたいに期待値を加える感じで
 
+        const size_t n = ctx.div_num.x * ctx.div_num.y;
+        size_t hash_val = n;
+        rep(i,n) hash_val ^= now_orig_pos[i] + 0x9e3779b9 + (hash_val << 6) + (hash_val >> 2);
+
+        int cost = procedures.size() * ctx.select_cost;
+        for(const auto& proc : procedures) cost += proc.get_path_size() * ctx.swap_cost;
+        return { cost, hash_val };
     }
     [[nodiscard]] const vector<TransitionType> get_all_possible_transition_types(const Context& ctx) const {
         vector<TransitionType> transition_types;
@@ -458,11 +480,13 @@ public:
         const int dnx = ctx.div_num.x, dny = ctx.div_num.y;
         const int n = dnx*dny;
         if (intentionally_sorted_count+4 == n) return {};
-        array<unsigned char, MAX_DIV_NUM> rev_now_orig_pos{};
-        array<unsigned char, MAX_DIV_NUM_X> vertical_sorted_count{};
-        array<unsigned char, MAX_DIV_NUM_Y> horizontal_sorted_count{};
+        static array<unsigned char, MAX_DIV_NUM> rev_now_orig_pos{};
+        static array<unsigned char, MAX_DIV_NUM_X> vertical_sorted_count{};
+        static array<unsigned char, MAX_DIV_NUM_Y> horizontal_sorted_count{};
 
         rep(i,n) rev_now_orig_pos[now_orig_pos[i]] = i;
+        rep(i,dny) horizontal_sorted_count[i] = 0;
+        rep(j,dnx) vertical_sorted_count[j] = 0;
 
         rep(i, dny) rep(j, dnx) if (state[Vec2(j,i).pos2idx(dnx)] == sorted) {
             vertical_sorted_count[j]++;
@@ -579,18 +603,23 @@ public:
             p = get_moved_toraly_pos(moving_pos, Pos(0, 0), ctx);
             selected_idx = 0;
         } else Utility::exit_with_message("[sort_last_2x2] 0");
-        vector<pair<int,int>> v;
+        vector<int> order;
         {
+            vector<int> tmp;
             Direction dir = Direction::R;
             rep(i,4) {
-                v.emplace_back(now_orig_pos[p.pos2idx(dnx)], i);
+                tmp.push_back(p.pos2idx(dnx));
+                move_toraly(p, dir, ctx);
+                dir.rotate_cw();
+            }
+            PRINT(tmp);
+            swap(tmp[2], tmp[3]);
+            rep(i,4) {
+                rep(j,4) if (now_orig_pos[p.pos2idx(dnx)] == tmp[j]) order.push_back(j);
                 move_toraly(p, dir, ctx);
                 dir.rotate_cw();
             }
         }
-        sort(all(v));
-        vector<int> order;
-        rep(i,4) rep(j,4) if (i == v[j].second) order.push_back(j);
         int now_selectable_times = ctx.selectable_times - procedures.size();
 
         int idx = min(3, now_selectable_times) + 4*selected_idx;
@@ -610,7 +639,7 @@ public:
 
         repo(i,1,procs.size()) {
             Path path = procs[i].get_path();
-            moving_pos = procs[i].get_selected_pos() + p;
+            moving_pos = get_moved_toraly_pos(p, procs[i].get_selected_pos(), ctx);
             procedures.emplace_back(moving_pos);
             move_current_selected_pos(path, ctx);
             procedures.back().join_path(path);
@@ -626,14 +655,6 @@ public:
         }
     }
     Procedures simulate(const array<LightProcedures, 4096>& best_procs_for_2x2, const Context& ctx) {
-        Pos target, destination;
-        cout << "target x,y >> ";
-        cin >> target;
-        destination = Pos::idx2pos(now_orig_pos[target.pos2idx(ctx.div_num.x)], ctx.div_num.x);
-        PRINT(destination);
-
-        if (first_sorted_pos == Pos(-1,-1)) first_sorted_pos = destination;
-        move_to_correct_pos(target, ctx);
         dump(ctx);
         Utility::print_wall("finish");
         DUMP();
@@ -673,6 +694,11 @@ public:
         Utility::print_wall("finish");
         DUMP();
 
+        Procedures procs;
+        for(const auto& proc : procedures) procs.push_back(proc.convert_single_procedure());
+        return procs;
+    }
+    Procedures get_procedures() const {
         Procedures procs;
         for(const auto& proc : procedures) procs.push_back(proc.convert_single_procedure());
         return procs;
@@ -802,7 +828,7 @@ array<LightProcedures, 4096> get_best_procs_for_2x2(const Context& ctx) {
     // 4^5 = 1024
     constexpr array<int, 4> offset{16,64,256, 1024};
     array<LightProcedures, 4096> best_procs_for_2x2;
-    array<bool, 4096> visited;
+    array<bool, 4096> visited{};
     reverse_priority_queue<ComparableData<int, tuple<int, int, vector<int>, LightProcedures>>> pq;
 
     rep(i,4) {
@@ -852,6 +878,7 @@ array<LightProcedures, 4096> get_best_procs_for_2x2(const Context& ctx) {
             pq.emplace(cost+ctx.select_cost, make_tuple(select_times+1, i, order, tmp_proc));
         }
     }
+
     Context tmp_ctx(Vec2<int>(2,2), 0, 0, 0);
     for(auto& procs : best_procs_for_2x2) {
         for(auto& proc : procs) {
@@ -898,10 +925,12 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
     PRINT(sizeof(optional<char>));
     PRINT(sizeof(optional<int>));
     PRINT(sizeof(optional<Direction>));
+    PRINT(sizeof(LimitedStorage<State>));
     PRINT(sizeof(State));
     PRINT(sizeof(char));
     PRINT(sizeof(unsigned char));
     PRINT(sizeof(bool));
+
     auto now_orig_pos = original_positions;
 
     const Context ctx( static_cast<Vec2<int>>(settings.DIV_NUM())
@@ -931,13 +960,164 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
     PRINT(count);
 */
 
-    State state(original_positions, Vec2(), ctx);
-    state.dump(ctx);
+    constexpr size_t storage_size = 200000;
+    const int dnx = ctx.div_num.x, dny = ctx.div_num.y;
+    const size_t n = dnx*dny;
+    const size_t unit_storage_size = storage_size / n;
+    vector<LimitedStorage<State>> storages(n, LimitedStorage<State>(unit_storage_size));
 
-    auto procedures = state.simulate(best_procs_for_2x2, ctx);
+    dump_original_positions(now_orig_pos, ctx);
+//    dump_original_positions(original_positions, ctx);
 
-    check_ans(original_positions, procedures, ctx);
+    vector<reverse_priority_queue<ComparableData<double, LimitedStorage<State>::Ticket>>> pq(n);
+    set<pair<Pos, Pos>> pushed_initial_state;
+    vector<map<size_t, double>> hash__score(n);
 
-    DUMP("hi");
-    return procedures;
+    double min_cost = 1e20;
+    Procedures best_procs;
+
+    int count = 0;
+    rep(i,4096) {
+        if (!best_procs_for_2x2[i].empty()) {
+            int select_times = i&3;
+            if (select_times == 3) {
+                int selected_idx = (i&12)>>2;
+                vector<int> order = {(i&48)>>4, (i&192)>>6, (i&768)>>8, (i&3072)>>10};
+                PRINT(i, select_times, selected_idx, order);
+                for(const auto& hoge : best_procs_for_2x2[i]) {
+                    hoge.dump();
+                }
+                Utility::print_wall();
+            }
+            if (select_times == 3) count++;
+        }
+    }
+    PRINT(count);
+/*
+    rep(i,dny) rep(j,dnx) rep(I,dny) rep(J,dnx) {
+        PRINT(i, j, I, J);
+        Pos selected_pos = Pos(j,i);
+        Pos first_target_pos = Pos(J,I);
+        Pos s_orig_pos = original_positions[selected_pos.y][selected_pos.x];
+        Pos t_orig_pos = original_positions[first_target_pos.y][first_target_pos.x];
+        if (s_orig_pos.x == t_orig_pos.x || s_orig_pos.y == t_orig_pos.y) continue;
+        State state(original_positions, selected_pos, first_target_pos, ctx);
+
+        while(true) {
+            auto transition_types = state.get_all_possible_transition_types(ctx);
+            if (transition_types.empty()) break;
+            double tmp_min_cost = 1e20;
+            State best_state;
+            for(const auto& tt : transition_types) {
+                State tmp_state = state;
+                tmp_state.transition(tt, ctx);
+                auto [cost, hash_val] = tmp_state.evaluate(ctx);
+                if (tmp_min_cost > cost) {
+                    tmp_min_cost = cost;
+                    best_state = tmp_state;
+                }
+            }
+            state = best_state;
+        }
+
+        state.dump(ctx);
+
+        state.sort_last_2x2(best_procs_for_2x2, ctx);
+
+        auto [cost, hash_val] = state.evaluate(ctx);
+        PRINT(min_cost, cost);
+        if (min_cost > cost) {
+            min_cost = cost;
+            best_procs = state.get_procedures();
+        }
+    }
+*/
+
+    int step = 0, step_zero_count = 0, continue_count = 0;
+    const int step_zero_limit = n * (n - ctx.div_num.x - ctx.div_num.y + 1);
+    TimeManager tm(10000);
+    while(tm.in_time_limit()) {
+        if (continue_count >= n) break;
+        if (step == 0) {
+            if (step_zero_count == step_zero_limit) { step++; continue_count++; continue; }
+            Pos selected_pos = Pos(Random::rand_range(ctx.div_num.x), Random::rand_range(ctx.div_num.y));
+            Pos first_target_pos = Pos(Random::rand_range(ctx.div_num.x), Random::rand_range(ctx.div_num.y));
+            Pos s_orig_pos = now_orig_pos[selected_pos.y][selected_pos.x];
+            Pos t_orig_pos = now_orig_pos[first_target_pos.y][first_target_pos.x];
+//            Pos s_orig_pos = original_positions[selected_pos.y][selected_pos.x];
+//            Pos t_orig_pos = original_positions[first_target_pos.y][first_target_pos.x];
+            while(s_orig_pos.x == t_orig_pos.x || s_orig_pos.y == t_orig_pos.y || pushed_initial_state.count(make_pair(selected_pos, first_target_pos))) {
+                first_target_pos = Pos(Random::rand_range(ctx.div_num.x), Random::rand_range(ctx.div_num.y));
+                t_orig_pos = now_orig_pos[first_target_pos.y][first_target_pos.x];
+//                t_orig_pos = original_positions[first_target_pos.y][first_target_pos.x];
+            }
+            State state(now_orig_pos, selected_pos, first_target_pos, ctx);
+//            State state(original_positions, selected_pos, first_target_pos, ctx);
+
+            auto [cost, hash_val] = state.evaluate(ctx);
+            auto tkt = storages[step].push(state);
+            if (hash__score[step].count(hash_val) == 0 || hash__score[step][hash_val] > cost) {
+                hash__score[step][hash_val] = cost;
+                pq[step].emplace(cost, tkt);
+            }
+            pushed_initial_state.emplace(selected_pos, first_target_pos);
+            step++;
+            step_zero_count++;
+        } else {
+            if (pq[step-1].empty()) { step = (step+1)%n; continue_count++; continue;}
+            auto cd = pq[step-1].top(); pq[step-1].pop();
+            auto tkt = cd.data;
+            auto op_state = storages[step-1].pop(tkt);
+            if (op_state) {
+                if (step == 224) PRINT(step);
+                auto state = op_state.value();
+                auto transition_types = state.get_all_possible_transition_types(ctx);
+                if (transition_types.empty()) {
+                    state.dump(ctx);
+                    state.sort_last_2x2(best_procs_for_2x2, ctx);
+                    auto [cost, hash_val] = state.evaluate(ctx);
+                    PRINT(cost, min_cost);
+                    if (min_cost > cost) {
+                        min_cost = cost;
+                        best_procs = state.get_procedures();
+                    }
+                } else {
+                    double tmp_min_cost = 1e20;
+                    State tmp_best_state;
+                    for(const auto& tt : transition_types) {
+                        State tmp_state = state;
+                        tmp_state.transition(tt, ctx);
+                        auto [cost, hash_val] = tmp_state.evaluate(ctx);
+                        if (tmp_min_cost > cost) {
+                            tmp_min_cost = cost;
+                            tmp_best_state = tmp_state;
+                        }
+/*
+                        if (hash__score[step].count(hash_val) == 0 || hash__score[step][hash_val] > cost) {
+                            PRINT("HOGE ##########");
+                            auto tkt = storages[step].push(tmp_state);
+                            hash__score[step][hash_val] = cost;
+                            pq[step].emplace(cost, tkt);
+                        } else PRINT("HOGE ........");
+*/
+                    }
+                    auto [cost, hash_val] = tmp_best_state.evaluate(ctx);
+                    if (hash__score[step].count(hash_val) == 0 || hash__score[step][hash_val] > cost) {
+                        auto tkt = storages[step].push(tmp_best_state);
+                        hash__score[step][hash_val] = cost;
+                        pq[step].emplace(cost, tkt);
+                    }
+                }
+            } else DUMP("HOGEHOGEHOGEHOGHOEHGOEHOGEHGOE");
+            step++;
+        }
+        continue_count = 0;
+    }
+
+    cout << min_cost << endl;
+    cout << best_procs << endl;
+
+    check_ans(original_positions, best_procs, ctx);
+
+    return best_procs;
 }
