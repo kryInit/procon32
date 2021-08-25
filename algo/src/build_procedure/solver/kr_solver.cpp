@@ -1017,7 +1017,7 @@ void sort_roughly(OriginalPositions& now_orig_pos, const Context& ctx) {
             }
         } else if (!now_path.empty()) { // if I couldn't find additional path
             // kick
-            if (loop_count - prev_upgrade_time > 100) {
+            if (loop_count - prev_upgrade_time > 300) {
                 now_path = best_path;
                 now_penalty = best_penalty;
                 now_orig_pos = original_orig_pos;
@@ -1085,6 +1085,7 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
     OriginalPositions now_orig_pos = original_positions;
     sort_roughly(now_orig_pos, ctx);
     dump_original_positions(now_orig_pos, ctx);
+    exit(-1);
 
     int loop_count = 0;
     while(++loop_count && Random::rand_range(256) != 1) {}
@@ -1212,11 +1213,15 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
             Pos t_orig_pos = now_orig_pos[first_target_pos.y][first_target_pos.x];
 //            Pos s_orig_pos = original_positions[selected_pos.y][selected_pos.x];
 //            Pos t_orig_pos = original_positions[first_target_pos.y][first_target_pos.x];
+            int lp = 0;
             while(s_orig_pos.x == t_orig_pos.x || s_orig_pos.y == t_orig_pos.y || pushed_initial_state.count(make_pair(selected_pos, first_target_pos))) {
+                lp++;
+                if (lp >= 10000) break;
                 first_target_pos = Pos(Random::rand_range(ctx.div_num.x), Random::rand_range(ctx.div_num.y));
                 t_orig_pos = now_orig_pos[first_target_pos.y][first_target_pos.x];
 //                t_orig_pos = original_positions[first_target_pos.y][first_target_pos.x];
             }
+            if (lp >= 10000) continue;
             State state(now_orig_pos, selected_pos, first_target_pos, ctx);
 //            State state(original_positions, selected_pos, first_target_pos, ctx);
 
