@@ -30,7 +30,7 @@ uint Random::rand_range(uint r) {
 }
 
 int Random::rand_range(int l, int r) {
-    return static_cast<int>(rand_uint()) % (r-l) + l;
+    return static_cast<int>(rand_uint()/2) % (r-l) + l;
 }
 
 uint Random::simple_exp_rand(uint r) {
