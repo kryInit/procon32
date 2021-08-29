@@ -5,6 +5,7 @@
 #include <time_manager.hpp>
 #include <limited_storage.hpp>
 #include <utility.hpp>
+#include <omp.h>
 
 using namespace std;
 
@@ -22,6 +23,8 @@ constexpr int MIN_SWAP_COST   = 1;
 constexpr int MIN_SELECT_COST = 1;
 constexpr int MAX_SWAP_COST   = 100;
 constexpr int MAX_SELECT_COST = 500;
+
+#define EXIT_WITH_MESSAGE(...) Utility::exit_with_message(Utility::concat("[",__func__,": ",__LINE__,"] ",__VA_ARGS__))
 
 /* * * * * * * * * * * * * * * *
  * row   , UR: RUULDRDLUURDLDRU *
@@ -100,24 +103,21 @@ void optimize_procedures(Procedures& procs) {
 
 struct State {
     static constexpr char ordinary = 0, sorted = 1, unmovable = 2;
-    int intentionally_sorted_count;
     Pos selected_pos, first_sorted_pos;
     Procedures proc;
     array<array<char, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> state;
     array<array<Pos, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> now_orig_pos;
 
 
-    State() : intentionally_sorted_count() , selected_pos(Pos(-1,-1)) , first_sorted_pos() , proc(), state(), now_orig_pos() {}
+    State() : selected_pos(Pos(-1,-1)) , first_sorted_pos() , proc(), state(), now_orig_pos() {}
     State(const OriginalPositions& orig_pos)
-        : intentionally_sorted_count()
-        , selected_pos(Pos(-1,-1))
+        : selected_pos(Pos(-1,-1))
         , first_sorted_pos()
         , proc(), state(), now_orig_pos() {
         rep(i, orig_pos.size()) rep(j, orig_pos[i].size()) now_orig_pos[i][j] = orig_pos[i][j];
     }
     State(const OriginalPositions& orig_pos, Pos first_selected_pos)
-        : intentionally_sorted_count()
-        , selected_pos(first_selected_pos)
+        : selected_pos(first_selected_pos)
         , first_sorted_pos()
         , proc(), state(), now_orig_pos() {
         rep(i, orig_pos.size()) rep(j, orig_pos[i].size()) now_orig_pos[i][j] = orig_pos[i][j];
@@ -187,7 +187,7 @@ protected:
 
     [[nodiscard]] Pos get_now_pos_by_original_pos(OriginalPos orig_pos, const State& state) const {
         rep(i,div_num.y) rep(j,div_num.x) if (state.now_orig_pos[i][j] == orig_pos) return Vec2(j,i);
-        Utility::exit_with_message("[get_now_pos_by_original_pos]");
+        EXIT_WITH_MESSAGE("reached end");
     }
 
     [[nodiscard]] bool is_completable(const State& state) const {
@@ -244,18 +244,19 @@ protected:
 };
 
 class RoughSorter : protected ISorter {
+protected:
 
     [[nodiscard]] int calc_mh_dist_toraly(const Pos& p1, const Pos& p2) const {
         const int dx = abs(p1.x - p2.x);
         const int dy = abs(p1.y - p2.y);
         return min(dx, div_num.x-dx) + min(dy, div_num.y-dy);
     }
-    [[nodiscard]] int calc_penalty(const Pos& p, const State& state) const {
+    [[nodiscard]] double calc_penalty(const Pos& p, const State& state) const {
         const int mh_dist = calc_mh_dist_toraly(p, state.now_orig_pos[p.y][p.x]);
         return mh_dist*mh_dist;
     }
 
-    int move_and_calc_diff_penalty(const Direction& dir, State& state) const {
+    double move_and_calc_diff_penalty(const Direction& dir, State& state) const {
         const Pos now = state.selected_pos;
         const Pos next = get_moved_toraly_pos(now, dir);
         int diff_penalty = -calc_penalty(next, state);
@@ -265,7 +266,7 @@ class RoughSorter : protected ISorter {
         diff_penalty += calc_penalty(now, state);
         return diff_penalty;
     }
-    int revert_move_and_calc_diff_penalty(const Direction& dir, State& state) {
+    double revert_move_and_calc_diff_penalty(const Direction& dir, State& state) const {
         return move_and_calc_diff_penalty(dir.get_dir_reversed(), state);
     }
 
@@ -286,78 +287,140 @@ public:
         return p;
     }
 
-    void sort_roughly(State& state) {
+    double sort_roughly(State& state, int time_limit = 5000, int depth = 9) {
         State original_state = state;
         const int dnx = div_num.x;
         const int dny = div_num.y;
         double coef = 0.;
 
-        int now_penalty = 0;
-        rep(i,dny) rep(j,dnx) if (i+j) now_penalty += calc_penalty(Vec2(j,i), state);
+        double now_penalty = 0;
+        rep(i,dny) rep(j,dnx) if (Pos(j,i) != state.selected_pos) now_penalty += calc_penalty(Pos(j,i), state);
         PRINT(now_penalty);
 
         int loop_count = 0;
         int prev_update_time = -1;
         int prev_upgrade_time = -1;
 
-        int best_penalty = now_penalty;
+        double best_penalty = now_penalty;
         Path best_path;
 
         Path now_path;
-        TimeManager tm(5000);
+        TimeManager tm(time_limit);
 
-        PRINT(now_penalty);
+        {
+            int count = 0;
+            rep(i, dny) {
+                rep(j,dnx) {
+                    int penalty = calc_penalty(Vec2(j,i), state);
+                    if (penalty == 0) cout << "   .";
+                    else cout << setw(4) << penalty, count++;
+                }
+                cout << endl;
+            }
+            cout << endl;
+        }
 
+///*
 
+        constexpr size_t threads_num = 12;
+        array<double, threads_num> min_diff_penalties{};
+        array<Path, threads_num> best_addnl_paths{}, initial_addnl_paths{};
+        {
+            constexpr Direction U = Direction::U, R = Direction::R, D = Direction::D, L = Direction::L;
+            initial_addnl_paths = {{{{U,U}}, {{U,R}}, {{U,L}}, {{R,U}}, {{R,R}}, {{R,D}}, {{D,R}}, {{D,D}}, {{D,L}}, {{L,U}}, {{L,D}}, {{L,L}}}};
+        }
+
+//*/
         while(tm.in_time_limit()) {
-            PRINT(loop_count, now_path.size());
+            PRINT(loop_count, now_path.size(), now_penalty, best_penalty);
             loop_count++;
 
             // serach additional path
-            constexpr int depth = 9;
-            int min_diff_penalty = INT_MAX;
+
+
+///*
+            rep(i,threads_num) min_diff_penalties[i] = 0, best_addnl_paths[i] = Path();
+
+#pragma omp parallel for num_threads(threads_num)
+            for(int i=0; i<threads_num; ++i) {
+//            rep(i,threads_num) {
+                State tmp_state = state;
+
+                double min_diff_penalty = 0;
+                Path best_addnl_path;
+
+                double now_diff_penalty = 0;
+                Path now_addnl_path = initial_addnl_paths[i];
+
+                now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path[0], tmp_state);
+
+                {
+                    double tmp_now_diff_penalty = now_diff_penalty +  coef;
+                    if ((min_diff_penalty > tmp_now_diff_penalty) || (min_diff_penalty == tmp_now_diff_penalty && best_addnl_path.size() > now_addnl_path.size())) {
+                        min_diff_penalty = tmp_now_diff_penalty;
+                        best_addnl_path.push_back(now_addnl_path[0]);
+                    }
+                }
+                now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path[1], tmp_state);
+
+                while(true) {
+                    if (now_addnl_path.size() == depth) {
+                        while(now_addnl_path.size() > 2 && now_addnl_path.back() == Direction::L) {
+                            now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), tmp_state);
+                            now_addnl_path.pop_back();
+                        }
+                        if (now_addnl_path.size() == 2) break;
+                        now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), tmp_state);
+                        now_addnl_path.back().rotate_cw();
+                        while(now_addnl_path.size() >= 3) {
+                            int idx = now_addnl_path.size()-2;
+                            if (Direction(now_addnl_path[idx].get_dir_reversed()) == now_addnl_path.back()) {
+                                if (now_addnl_path.back() == Direction::L) {
+                                    now_addnl_path.pop_back();
+                                    now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), tmp_state);
+                                    if (now_addnl_path.size() == 2) break;
+                                }
+                                now_addnl_path.back().rotate_cw();
+                            } else break;
+                        }
+                        if (now_addnl_path.size() == 2) break;
+                    } else {
+                        if (now_addnl_path.back() != Direction::D) now_addnl_path.push_back(Direction::U);
+                        else now_addnl_path.push_back(Direction::R);
+                    }
+
+                    now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path.back(), tmp_state);
+
+                    double tmp_now_diff_penalty = now_diff_penalty + now_addnl_path.size() * coef;
+                    if ((min_diff_penalty > tmp_now_diff_penalty) || (min_diff_penalty == tmp_now_diff_penalty && best_addnl_path.size() > now_addnl_path.size())) {
+                        min_diff_penalty = tmp_now_diff_penalty;
+                        best_addnl_path = now_addnl_path;
+                    }
+                }
+
+                min_diff_penalties[i] = min_diff_penalty;
+                best_addnl_paths[i] = best_addnl_path;
+            }
+
+            double min_diff_penalty = 1e20;
             Path best_addnl_path;
 
-            int now_diff_penalty = 0;
-            Path now_addnl_path; now_addnl_path.reserve(depth);
-            while(true) {
-                if (now_addnl_path.size() == depth) {
-                    while(!now_addnl_path.empty() && now_addnl_path.back() == Direction::L) {
-                        now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
-                        now_addnl_path.pop_back();
-                    }
-                    if (now_addnl_path.empty()) break;
-                    now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
-                    now_addnl_path.back().rotate_cw();
-                    while(now_addnl_path.size() >= 2) {
-                        int idx = now_addnl_path.size()-2;
-                        if (Direction(now_addnl_path[idx].get_dir_reversed()) == now_addnl_path.back()) {
-                            if (now_addnl_path.back() == Direction::L) {
-                                now_addnl_path.pop_back();
-                                now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
-                            }
-                            now_addnl_path.back().rotate_cw();
-                        } else break;
-                    }
-                } else {
-                    if (now_addnl_path.empty() || now_addnl_path.back() != Direction::D) now_addnl_path.push_back(Direction::U);
-                    else now_addnl_path.push_back(Direction::R);
-                }
-
-                now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path.back(), state);
-
-                if (min_diff_penalty > now_diff_penalty + now_addnl_path.size() * coef) {
-                    min_diff_penalty = now_diff_penalty + now_addnl_path.size() * coef;
-                    best_addnl_path = now_addnl_path;
+            rep(i,threads_num) {
+                if (min_diff_penalty > min_diff_penalties[i] || (min_diff_penalty == min_diff_penalties[i] && best_addnl_paths.size() > best_addnl_paths[i].size())) {
+                    min_diff_penalty = min_diff_penalties[i];
+                    best_addnl_path = best_addnl_paths[i];
                 }
             }
+
+//*/
+
             if (min_diff_penalty < 0) {// if I found good additional path
                 // add path and change
                 for(const auto& dir : best_addnl_path) move_selected_pos(dir, state);
                 join_path(now_path, best_addnl_path);
                 now_penalty += min_diff_penalty;
                 prev_update_time = loop_count;
-                if (best_penalty > now_penalty) {
+                if ((best_penalty > now_penalty) || (best_penalty == now_penalty && best_path.size() > now_path.size())) {
                     best_penalty = now_penalty;
                     best_path = now_path;
                     PRINT(loop_count, best_penalty);
@@ -393,7 +456,8 @@ public:
         state = original_state;
         join_path(state.proc.back().path, best_path);
         for(const auto& dir : best_path) move_selected_pos(dir, state);
-        int tmp_penalty = - calc_penalty(original_state.selected_pos, state);
+
+        double tmp_penalty = - calc_penalty(state.selected_pos, state);
         rep(i,dny) rep(j,dnx) tmp_penalty += calc_penalty(Pos(j,i), state);
         PRINT(tmp_penalty);
         PRINT(tmp_penalty + best_path.size()*coef);
@@ -402,7 +466,7 @@ public:
             rep(j,dnx) {
                 int penalty = calc_penalty(Vec2(j,i), state);
                 if (penalty == 0) cout << "  .";
-                else cout << setw(3) << calc_penalty(Vec2(j,i), state), count++;
+                else cout << setw(3) << penalty, count++;
             }
             cout << endl;
         }
@@ -418,30 +482,119 @@ public:
                             cout << dir << " ";
                             break;
                         }
-                        else if (dir == Direction::L) cout << calc_penalty(Vec2(j,i), state) << " ";
+                        else if (dir == Direction::L) cout << (int)calc_penalty(Vec2(j,i), state) << " ";
                     }
                 }
             }
             cout << endl;
         }
         cout << endl;
+
+        return best_penalty;
+    }
+    double sort__roughly(State& state, int time_limit = 5000) {
+        State original_state = state;
+        const int dnx = div_num.x;
+        const int dny = div_num.y;
+        double coef = 0.;
+
+        double now_penalty = 0;
+        rep(i,dny) rep(j,dnx) if (Pos(j,i) != state.selected_pos) now_penalty += calc_penalty(Pos(j,i), state);
+
+        int loop_count = 0;
+        int prev_update_time = -1;
+        int prev_upgrade_time = -1;
+
+        double best_penalty = now_penalty;
+        Path best_path;
+
+        Path now_path;
+        TimeManager tm(time_limit);
+        constexpr int depth = 9;
+
+        while(tm.in_time_limit()) {
+            loop_count++;
+
+            double min_diff_penalty = 1e20;
+            Path best_addnl_path;
+
+            double now_diff_penalty = 0;
+            Path now_addnl_path; now_addnl_path.reserve(depth);
+            while(true) {
+                if (now_addnl_path.size() == depth) {
+                    while(!now_addnl_path.empty() && now_addnl_path.back() == Direction::L) {
+                        now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
+                        now_addnl_path.pop_back();
+                    }
+                    if (now_addnl_path.empty()) break;
+                    now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
+                    now_addnl_path.back().rotate_cw();
+                    while(now_addnl_path.size() >= 2) {
+                        int idx = now_addnl_path.size()-2;
+                        if (Direction(now_addnl_path[idx].get_dir_reversed()) == now_addnl_path.back()) {
+                            if (now_addnl_path.back() == Direction::L) {
+                                now_addnl_path.pop_back();
+                                now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
+                            }
+                            now_addnl_path.back().rotate_cw();
+                        } else break;
+                    }
+                } else {
+                    if (now_addnl_path.empty() || now_addnl_path.back() != Direction::D) now_addnl_path.push_back(Direction::U);
+                    else now_addnl_path.push_back(Direction::R);
+                }
+
+                now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path.back(), state);
+
+                double tmp_now_diff_penalty = now_diff_penalty + now_addnl_path.size() * coef;
+                if ((min_diff_penalty > tmp_now_diff_penalty) || (min_diff_penalty == tmp_now_diff_penalty && best_addnl_path.size() > now_addnl_path.size())) {
+                    min_diff_penalty = tmp_now_diff_penalty;
+                    best_addnl_path = now_addnl_path;
+                }
+            }
+
+            if (min_diff_penalty < 0) {// if I found good additional path
+                // add path and change
+                for(const auto& dir : best_addnl_path) move_selected_pos(dir, state);
+                join_path(now_path, best_addnl_path);
+                now_penalty += min_diff_penalty;
+                prev_update_time = loop_count;
+                if ((best_penalty > now_penalty) || (best_penalty == now_penalty && best_path.size() > now_path.size())) {
+                    best_penalty = now_penalty;
+                    best_path = now_path;
+                    prev_upgrade_time = loop_count;
+                }
+            } else if (!now_path.empty()) { // if I couldn't find additional path
+                // kick
+                if (loop_count > prev_upgrade_time*100) break;
+                else if (loop_count - prev_update_time > 300) {
+                    now_path = best_path;
+                    now_penalty = best_penalty;
+                    state = original_state;
+                    for(const auto& dir : now_path) move_selected_pos(dir, state);
+                    prev_update_time = loop_count;
+                } else {
+                    now_penalty -= now_path.size() * coef;
+                    int delete_num = Random::simple_exp_rand(now_path.size()) + 1;
+                    rep(_,delete_num) {
+                        now_penalty += revert_move_and_calc_diff_penalty(now_path.back(), state);
+                        now_path.pop_back();
+                    }
+                    now_penalty += now_path.size() * coef;
+                }
+            } else break;
+        }
+
+        state = original_state;
+        join_path(state.proc.back().path, best_path);
+        for(const auto& dir : best_path) move_selected_pos(dir, state);
+        return best_penalty;
     }
 };
 
 class StrictSorter : RoughSorter {
     bool caluclated_best_procs_for_2x2;
     array<Procedures, 4096> best_procs_for_2x2;
-
-    [[nodiscard]] tuple<double, size_t> evaluate(const State& state) const {
-        // todo: ちゃんと書く, A*探索みたいに期待値を加える感じで
-
-        size_t hash_val = 0;
-        rep(i,div_num.x) rep(j,div_num.y) hash_val ^= state.now_orig_pos[i][j].pos2idx(div_num.x) + 0x9e3779b9 + (hash_val << 6) + (hash_val >> 2);
-
-        int cost = state.proc.size() * select_cost;
-        for(const auto& proc : state.proc) cost += proc.path.size() * swap_cost;
-        return { cost, hash_val };
-    }
 
     [[nodiscard]] optional<Path> calc_shortest_path(const Pos& s, const Pos& t, const State& state) const {
         const int dnx = div_num.x, dny = div_num.y;
@@ -451,12 +604,12 @@ class StrictSorter : RoughSorter {
         rep(i,dny) rep(j,dnx) visited[i][j] = false;
 
         if (state.state[s.y][s.x] != state.ordinary) {
-            auto message = Utility::concat("[calc_shortest_path]: state[s_idx] is ", state.state[s.y][s.x]);
-            Utility::exit_with_message(message);
+            auto message = Utility::concat("state[s_idx] is ", state.state[s.y][s.x]);
+            EXIT_WITH_MESSAGE(message);
         }
         if (state.state[t.y][t.x] != state.ordinary) {
-            auto message = Utility::concat("[calc_shortest_path]: state[t_idx] is ", state.state[t.y][t.x]);
-            Utility::exit_with_message(message);
+            auto message = Utility::concat("state[t_idx] is ", state.state[t.y][t.x]);
+            EXIT_WITH_MESSAGE(message);
         }
 
         que.emplace_back(s, Path());
@@ -486,12 +639,12 @@ class StrictSorter : RoughSorter {
         rep(i,dny) rep(j,dnx) visited[i][j] = false;
 
         if (state.state[s.y][s.x] != state.ordinary) {
-            auto message = Utility::concat("[calc_nice_path]: state[s_idx] is ", state.state[s.y][s.x]);
-            Utility::exit_with_message(message);
+            auto message = Utility::concat("state[s_idx] is ", state.state[s.y][s.x]);
+            EXIT_WITH_MESSAGE(message);
         }
         if (state.state[t.y][t.x] != state.ordinary) {
-            auto message = Utility::concat("[calc_nice_path]: state[t_idx] is ", state.state[t.y][t.x]);
-            Utility::exit_with_message(message);
+            auto message = Utility::concat("state[t_idx] is ", state.state[t.y][t.x]);
+            EXIT_WITH_MESSAGE(message);
         }
 
         que.emplace_back(s, Path());
@@ -539,7 +692,7 @@ class StrictSorter : RoughSorter {
 
     tuple<Path, bool> move_target_to_destination_by_selected_pos(const Pos& target, const Pos& destination, State& state) {
         if (state.state[target.y][target.x] != state.ordinary) {
-            Utility::exit_with_message("[move_target_to_destination_by_selected_pos]: target's state isn't ordinary");
+            EXIT_WITH_MESSAGE("target's state isn't ordinary");
         }
 
         Pos now = target;
@@ -567,7 +720,6 @@ class StrictSorter : RoughSorter {
     void move_to_correct_pos(const Pos& target, State& state) {
         Pos destination = state.now_orig_pos[target.y][target.x];
         if (target == destination) {
-            state.intentionally_sorted_count++;
             state.state[destination.y][destination.x] = state.sorted;
             return;
         }
@@ -575,9 +727,8 @@ class StrictSorter : RoughSorter {
         if (succeeded) {
 //            PRINT(path);
             join_path(state.proc.back().path, path);
-            state.intentionally_sorted_count++;
             state.state[destination.y][destination.x] = state.sorted;
-        } else Utility::exit_with_message("[move_to_correct_pos]: ");
+        } else EXIT_WITH_MESSAGE("failed");
     }
 
     void move_to_correct_pos(const Pos& target, const Pos& first_buddy, Direction free_dir, State& state) {
@@ -585,7 +736,6 @@ class StrictSorter : RoughSorter {
         const OriginalPos orig_buddy = state.now_orig_pos[first_buddy.y][first_buddy.x];
 
         if (target == orig_target && first_buddy == orig_buddy) {
-            state.intentionally_sorted_count += 2;
             state.state[orig_target.y][orig_target.x] = state.sorted;
             state.state[orig_buddy.y][orig_buddy.x] = state.sorted;
             return;
@@ -597,11 +747,11 @@ class StrictSorter : RoughSorter {
         rep(_,4) {
             if (get_moved_toraly_pos(orig_target, target_to_buddy_dir) == orig_buddy) break;
             target_to_buddy_dir.rotate_cw();
-            if (_ == 3) Utility::exit_with_message("[move_to_current_pos]: 4");
+            if (_ == 3) EXIT_WITH_MESSAGE("");
         }
 
         if (state.state[destination1.y][destination1.x] != state.ordinary || state.state[destination2.y][destination2.x] != state.ordinary) {
-            Utility::exit_with_message("[move_to_current_pos]: 0");
+            EXIT_WITH_MESSAGE("");
         }
 
         Path path, tmp_path;
@@ -609,7 +759,7 @@ class StrictSorter : RoughSorter {
 
 //        PRINT(target, destination1);
         tie(tmp_path, succeeded) = move_target_to_destination_by_selected_pos(target, destination1, state);
-        if (!succeeded) Utility::exit_with_message("[move_to_current_pos]: 1");
+        if (!succeeded) EXIT_WITH_MESSAGE("");
         join_path(path, tmp_path);
         state.state[destination1.y][destination1.x] = state.unmovable;
 
@@ -619,8 +769,8 @@ class StrictSorter : RoughSorter {
         join_path(path, tmp_path);
         state.state[destination2.y][destination2.x] = state.unmovable;
         if (!succeeded) {
-            if (state.selected_pos != orig_target) Utility::exit_with_message(Utility::concat("[move_to_current_pos] moving_pos, orig_target: ",state.selected_pos,orig_target));
-            if (target_to_buddy_dir.is_vertical() == free_dir.is_vertical()) Utility::exit_with_message("[move_to_current_pos] 2");
+            if (state.selected_pos != orig_target) EXIT_WITH_MESSAGE("moving_pos, orig_target: ",state.selected_pos,orig_target);
+            if (target_to_buddy_dir.is_vertical() == free_dir.is_vertical()) EXIT_WITH_MESSAGE("");
             if (target_to_buddy_dir == Direction::U) {
                 if (free_dir == Direction::R) tmp_path = column_UR;
                 else tmp_path = column_UL;
@@ -642,7 +792,6 @@ class StrictSorter : RoughSorter {
 
 //            PRINT(path);
             join_path(state.proc.back().path, path);
-            state.intentionally_sorted_count += 2;
             state.state[orig_target.y][orig_target.x] = state.sorted;
             state.state[orig_buddy.y][orig_buddy.x] = state.sorted;
             return;
@@ -650,7 +799,7 @@ class StrictSorter : RoughSorter {
 
 //        PRINT(target, destination3);
         auto opt_path = calc_nice_path(state.selected_pos, destination3, state);
-        if (!opt_path) Utility::exit_with_message("[move_to_current_pos]: 3");
+        if (!opt_path) EXIT_WITH_MESSAGE("");
         move_selected_pos(opt_path.value(), state);
         join_path(path, opt_path.value());
 
@@ -664,7 +813,6 @@ class StrictSorter : RoughSorter {
 
 //        PRINT(path);
         join_path(state.proc.back().path, path);
-        state.intentionally_sorted_count += 2;
         state.state[orig_target.y][orig_target.x] = state.sorted;
         state.state[orig_buddy.y][orig_buddy.x] = state.sorted;
     }
@@ -684,7 +832,6 @@ class StrictSorter : RoughSorter {
         constexpr unsigned char unsortable = 255;
         const int dnx = div_num.x, dny = div_num.y;
         const int n = dnx*dny;
-        if (state.intentionally_sorted_count+4 == n) return {};
         array<array<Pos, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> rev_now_orig_pos{};
         static array<unsigned char, MAX_DIV_NUM_X> vertical_sorted_count{};
         static array<unsigned char, MAX_DIV_NUM_Y> horizontal_sorted_count{};
@@ -693,10 +840,13 @@ class StrictSorter : RoughSorter {
         rep(i,dny) horizontal_sorted_count[i] = 0;
         rep(j,dnx) vertical_sorted_count[j] = 0;
 
+        int sorted_count = 0;
         rep(i, dny) rep(j, dnx) if (state.state[i][j] == state.sorted) {
+            sorted_count++;
             vertical_sorted_count[j]++;
             horizontal_sorted_count[i]++;
         }
+        if (sorted_count+4 == n) return {};
 
         rep(j,dnx) if (vertical_sorted_count[j] == dny-2) rep(i,dny) {
             const OriginalPos orig_p1 = Vec2(j,i);
@@ -842,7 +992,7 @@ class StrictSorter : RoughSorter {
         else move_to_correct_pos(tt.target, state);
     }
     void sort_last_2x2(State& state, int max_select_times) {
-        if (max_select_times < 1) Utility::exit_with_message("[sort_last_2x2] a");
+        if (max_select_times < 1) EXIT_WITH_MESSAGE("");
         constexpr array<int, 4> offset{16,64,256, 1024};
         const int dnx = div_num.x, dny = div_num.y;
         Pos p;
@@ -860,9 +1010,9 @@ class StrictSorter : RoughSorter {
             p = get_moved_toraly_pos(state.selected_pos, Pos(0,0));
             selected_idx = 0;
         }
-        else Utility::exit_with_message("[sort_last_2x2] 0");
-        PRINT(p, selected_idx);
-        PRINT( get_moved_toraly_pos(state.selected_pos, Pos(1,1)));
+        else EXIT_WITH_MESSAGE("");
+//        PRINT(p, selected_idx);
+//        PRINT( get_moved_toraly_pos(state.selected_pos, Pos(1,1)));
         vector<int> order;
         {
             vector<Pos> tmp;
@@ -872,10 +1022,10 @@ class StrictSorter : RoughSorter {
                 move_toraly(p, dir);
                 dir.rotate_cw();
             }
-            PRINT(tmp);
+//            PRINT(tmp);
             swap(tmp[2], tmp[3]);
             rep(i,4) {
-                PRINT(p, state.now_orig_pos[p.y][p.x]);
+//                PRINT(p, state.now_orig_pos[p.y][p.x]);
                 rep(j,4) if (state.now_orig_pos[p.y][p.x] == tmp[j]) order.push_back(j);
                 move_toraly(p, dir);
                 dir.rotate_cw();
@@ -884,17 +1034,17 @@ class StrictSorter : RoughSorter {
 
         int idx = min(3, max_select_times) + 4*selected_idx;
         rep(i,4) idx += order[i]*offset[i];
-        PRINT(order);
-        PRINT(idx);
+//        PRINT(order);
+//        PRINT(idx);
 
         auto& procs = best_procs_for_2x2[idx];
-        if (procs.empty()) Utility::exit_with_message("[sort_last_2x2] 1");
+        if (procs.empty()) EXIT_WITH_MESSAGE("");
 
         {
             Path path = procs.front().path;
             move_selected_pos(path, state);
             join_path(state.proc.back().path, path);
-            PRINT(path);
+//            PRINT(path);
         }
 
         repo(i,1,procs.size()) {
@@ -903,7 +1053,7 @@ class StrictSorter : RoughSorter {
             state.proc.emplace_back(state.selected_pos, Path());
             move_selected_pos(path, state);
             join_path(state.proc.back().path, path);
-            PRINT(path);
+//            PRINT(path);
         }
         {
             Direction dir = Direction::R;
@@ -916,6 +1066,17 @@ class StrictSorter : RoughSorter {
     }
 
 public:
+    [[nodiscard]] tuple<double, size_t> evaluate(const State& state) const {
+        // todo: ちゃんと書く, A*探索みたいに期待値を加える感じで
+
+        size_t hash_val = 0;
+        rep(i,div_num.x) rep(j,div_num.y) hash_val ^= state.now_orig_pos[i][j].pos2idx(div_num.x) + 0x9e3779b9 + (hash_val << 6) + (hash_val >> 2);
+
+        int cost = state.proc.size() * select_cost;
+        for(const auto& proc : state.proc) cost += proc.path.size() * swap_cost;
+        return { cost, hash_val };
+    }
+
     StrictSorter(Vec2<int> div_num, int selectable_times, int select_cost, int swap_cost)
         : RoughSorter(div_num, selectable_times, select_cost, swap_cost) {
         calc_best_procs_for_2x2();
@@ -931,9 +1092,11 @@ public:
         state.first_sorted_pos = state.now_orig_pos[first_target.y][first_target.x];
         move_to_correct_pos(first_target, state);
 
+/*
         state.dump(div_num);
         Utility::print_wall("finish");
         DUMP();
+*/
 
         while(true) {
             auto transition_types = get_all_possible_transition_types(state);
@@ -952,16 +1115,112 @@ public:
 
             state = best_state;
 
+/*
             state.dump(div_num);
             Utility::print_wall("finish");
             DUMP();
+*/
         }
 
         sort_last_2x2(state, 3);
     }
 
-    void sort_partially(State& state, const Pos& UL, const Pos& dp) {
-        
+    void sort_partially(const Pos& first_selected_pos, const Pos& UL, const Pos& dp, State& state) {
+        static array<array<char, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> orig_state;
+        rep(i,div_num.y) rep(j,div_num.x) {
+            orig_state[i][j] = state.state[i][j];
+            state.state[i][j] = state.sorted;
+        }
+        int count = 0;
+        rep(dy, dp.y) rep(dx, dp.x) {
+            const Pos tmp_dp(dx, dy);
+            const Pos p = get_moved_toraly_pos(UL, tmp_dp);
+            state.state[p.y][p.x] = state.ordinary;
+            if (p == first_selected_pos) count++;
+        }
+        if (count != 1) EXIT_WITH_MESSAGE("out of range");
+
+        if (state.selected_pos != first_selected_pos) {
+            state.selected_pos = first_selected_pos;
+            state.proc.emplace_back(first_selected_pos, Path());
+        }
+
+        state.dump(div_num);
+        DUMP();
+
+        state.first_sorted_pos = get_moved_toraly_pos(UL, dp);
+        PRINT(state.first_sorted_pos);
+
+        while(true) {
+            auto transition_types = get_all_possible_transition_types(state);
+            if (transition_types.empty()) break;
+            double min_cost = 1e20;
+            State best_state;
+            for(const auto& transition_type : transition_types) {
+                Pos target = transition_type.target;
+                bool has_buddy = transition_type.has_buddy;
+                Pos buddy = transition_type.buddy;
+                Direction free_dir = transition_type.free_dir;
+                if (has_buddy) PRINT(target, buddy, free_dir);
+                else PRINT(target);
+
+                State tmp_state = state;
+                transition(transition_type, tmp_state);
+                double cost = get<0>(evaluate(tmp_state));
+                if (min_cost > cost) {
+                    min_cost = cost;
+                    best_state = tmp_state;
+                }
+            }
+
+            state = best_state;
+            state.dump(div_num);
+            DUMP();
+        }
+        state.dump(div_num);
+
+
+        sort_last_2x2(state, 3);
+
+        rep(i,div_num.y) rep(j,div_num.x) state.state[i][j] = orig_state[i][j];
+        rep(dy, dp.y) rep(dx, dp.x) {
+            const Pos tmp_dp(dx, dy);
+            const Pos p = get_moved_toraly_pos(UL, tmp_dp);
+            state.state[p.y][p.x] = state.sorted;
+        }
+
+        int dny = div_num.y, dnx = div_num.x;
+        {
+            int count = 0;
+            rep(i, dny) {
+                rep(j,dnx) {
+                    int penalty = calc_penalty(Vec2(j,i), state);
+                    if (penalty == 0) cout << "  .";
+                    else cout << setw(3) << calc_penalty(Vec2(j,i), state), count++;
+                }
+                cout << endl;
+            }
+            cout << endl;
+            PRINT(count);
+        }
+
+        rep(i, dny) {
+            rep(j,dnx) {
+                if (Pos(j,i) == state.now_orig_pos[i][j]) cout << ". ";
+                else {
+                    for(const auto& dir : Utility::get_neighborhood4_dir()) {
+                        if (get_moved_toraly_pos(Pos(j,i), dir) == state.now_orig_pos[i][j]) {
+                            cout << dir << " ";
+                            break;
+                        }
+                        else if (dir == Direction::L) cout << calc_penalty(Vec2(j,i), state) << " ";
+                    }
+                }
+            }
+            cout << endl;
+        }
+        cout << endl;
+
     }
 };
 
@@ -997,8 +1256,6 @@ void check_ans(OriginalPositions initial_orig_pos, const Procedures &procs, cons
     }
 }
 
-
-
 Procedures KrSolver::operator()(const OriginalPositions& original_positions, const Settings& settings) {
     const Vec2<int> div_num = static_cast<Vec2<int>>(settings.DIV_NUM());
     const int selectable_times = settings.SELECTABLE_TIMES();
@@ -1008,25 +1265,111 @@ Procedures KrSolver::operator()(const OriginalPositions& original_positions, con
     State state(original_positions);
     RoughSorter rough_sorter(div_num, selectable_times, select_cost, swap_cost);
     StrictSorter strict_sorter(div_num, selectable_times, select_cost, swap_cost);
-//    rep(_, 100)
-//    rep(_, selectable_times-1)
+
+/*
+    array<double, 256> cost{};
+#pragma omp parallel for
+    for(int idx = 0; idx < div_num.x*div_num.y; ++idx) {
+        StrictSorter ss(div_num, selectable_times, select_cost, swap_cost);
+        State tmp_state = state;
+        Pos p(idx%div_num.x, idx / div_num.x);
+        tmp_state.proc.emplace_back(p, Path());
+        tmp_state.selected_pos = p;
+        cost[idx] = rough_sorter.sort__roughly(tmp_state);
+    }
+    int idx = 0;
+    rep(i, div_num.x*div_num.y) if (cost[idx] > cost[i]) idx = i;
+    rep(i,div_num.y) {
+        rep(j,div_num.x) cout << setw(5) << (int)cost[i*div_num.x+j] << " ";
+        cout << endl;
+    }
+*/
+
+//        rep(_, 100)
+    //    rep(_, selectable_times-2)
     {
-        Pos p = rough_sorter.get_max_penalty_pos(state);
+//        Pos p = rough_sorter.get_max_penalty_pos(state);
 //        if (p.x < 0 || p.y < 0) break;
+//        Pos p(idx%div_num.x, idx / div_num.x);
+//        PRINT(p, cost[idx]);
+//        Pos p = Pos(5,8);
+        Pos p = Pos(0,0);
         state.proc.emplace_back(p, Path());
         state.selected_pos = p;
-        rough_sorter.sort_roughly(state);
+        rough_sorter.sort_roughly(state, 10000, 12);
+//        if (_ < 5) rough_sorter.sort_roughly(state, 6000, 15);
+//        else rough_sorter.sort_roughly(state, 6000, 9);
     }
 
-    const Pos first_selected_pos = state.selected_pos;
-    Pos first_target = Pos(Random::rand_range(div_num.x), Random::rand_range(div_num.y));
-    while(first_selected_pos.x == first_target.x || first_selected_pos.y == first_target.y) {
-        first_target = Pos(Random::rand_range(div_num.x), Random::rand_range(div_num.y));
+    state.dump(div_num);
+/*
+
+    while(true) {
+        Pos p = Pos(0,0);
+        cin >> p;
+        if (p.x < 0) break;
+        state.proc.emplace_back(p, Path());
+        state.selected_pos = p;
+        rough_sorter.sort_roughly(state, 5000, 11);
     }
 
+*/
+/*
+    while(true) {
+        Pos first_selected_pos;
+        Pos UL;
+        Pos dp;
+        cin >> first_selected_pos >> UL >> dp;
+        if (first_selected_pos.x < 0) break;
+        strict_sorter.sort_partially(first_selected_pos, UL, dp, state);
+    }
+*/
+/*
+
+    Pos first_selected_pos, first_target;
+    cout << ">> ";
+    cin >> first_selected_pos >> first_target;
     strict_sorter.sort_start2finish(first_selected_pos, first_target, state);
-
     optimize_procedures(state.proc);
+
+*/
+
+    double min_cost = 1e20;
+    State best_state;
+    Pos offset = Pos(16,16);
+    TimingDevice td;
+
+    rep(i, div_num.y / offset.y) rep(j, div_num.x / offset.x) {
+        rep(I, div_num.y / offset.y) rep(J, div_num.x / offset.x) {
+            PRINT(i,j,I,J);
+            td.print_elapsed();
+            const Pos margin = Pos(min(offset.x, div_num.x - j*offset.x), min(offset.y, div_num.y - i*offset.y));
+            const Pos MARGIN = Pos(min(offset.x, div_num.x - J*offset.x), min(offset.y, div_num.y - I*offset.y));
+
+            Pos first_selected_pos, first_target, o1, o2;
+
+            do {
+                first_selected_pos = Pos(j,i)*offset + Pos(Random::rand_range(margin.x), Random::rand_range(margin.y));
+                first_target = Pos(J,I)*offset + Pos(Random::rand_range(MARGIN.x), Random::rand_range(MARGIN.y));
+                o1 = state.now_orig_pos[first_selected_pos.y][first_selected_pos.x];
+                o2 = state.now_orig_pos[first_target.y][first_target.x];
+            } while(o1.x == o2.x || o1.y == o2.y);
+
+            PRINT(first_selected_pos, first_target);
+            State tmp_state = state;
+            strict_sorter.sort_start2finish(first_selected_pos, first_target, tmp_state);
+            optimize_procedures(tmp_state.proc);
+
+            double cost = get<0>(strict_sorter.evaluate(tmp_state));
+            PRINT(min_cost, cost);
+            if (min_cost > cost) {
+                min_cost = cost;
+                best_state = tmp_state;
+            }
+        }
+    }
+
+    state = best_state;
 
     Utility::print_wall();
 
