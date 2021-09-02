@@ -51,7 +51,9 @@ for y in range(div_h):
         idx = '{:X}{:X}'.format(x, y)
         tmp_img = img.crop((x*frag_size, y*frag_size, (x+1)*frag_size, (y+1)*frag_size))
         out_img_path = out_img_dir + '/' + idx + '.ppm'
+        out_img_path__jpg = out_img_dir + '/' + idx + '.jpg'
         tmp_img.save(out_img_path)
+        tmp_img.save(out_img_path__jpg)
         shutil.copy(out_img_path, out_img_path + '.bin')
         with open(out_img_path, mode='rb') as f:
             data = f.readlines()

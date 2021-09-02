@@ -54,7 +54,7 @@ private:
 public:
     explicit LimitedStorage(size_t max_storage_size) : max_storage_size(max_storage_size), pushed_count(0), storage() {}
     void reserve(size_t n) { storage.reserve(std::min(n, max_storage_size)); }
-    const Ticket push(const T& data) {
+    Ticket push(const T& data) {
         size_t key = pushed_count++;
         Index idx = get_insertable_storage_idx();
         if (idx == storage.size()) storage.emplace_back(key, data);
@@ -66,7 +66,7 @@ public:
         if (storage[tkt.storage_idx].key != tkt.key) return std::nullopt;
         popped.push(tkt.storage_idx);
         storage[tkt.storage_idx].key = -1;
-        return move(storage[tkt.storage_idx].data);
+        return storage[tkt.storage_idx].data;
     }
     [[nodiscard]] std::optional<T> get(const Ticket& tkt) const {
         if (storage[tkt.storage_idx].key != tkt.key) return std::nullopt;
@@ -80,11 +80,11 @@ public:
     }
     void dump(std::ostream& os) {
         os << "limited storage dump";
-        os << " ============ storage info ============ " << endl;
-        os << "max_storage_size: " << max_storage_size << endl;
-        os << "pushed_count: " << pushed_count << endl;
-        for(int i=0; i < storage.size(); ++i) os << "storage[" << i << "]: " << storage[i] << endl;
-        os << " ====================================== " << endl;
+        os << " ============ storage info ============ " << std::endl;
+        os << "max_storage_size: " << max_storage_size << std::endl;
+        os << "pushed_count: " << pushed_count << std::endl;
+        for(int i=0; i < storage.size(); ++i) os << "storage[" << i << "]: " << storage[i] << std::endl;
+        os << " ====================================== " << std::endl;
     }
     void dump() { dump(std::cout); }
     void edump() { dump(std::cerr); }
