@@ -310,14 +310,24 @@ struct Pos {
     constexpr Pos operator+(const Pos& another) const { return { x + another.x, y + another.y }; }
     constexpr Pos operator-(const Pos& another) const { return { x - another.x, y - another.y }; }
     constexpr Pos operator*(const Pos& another) const { return { x * another.x, y * another.y }; }
+    constexpr Pos operator/(const Pos& another) const { return { x / another.x, y / another.y }; }
+    constexpr Pos operator%(const Pos& another) const { return { x % another.x, y % another.y }; }
+    constexpr Pos operator+(int s) const { return { x+s, y+s }; }
+    constexpr Pos operator-(int s) const { return { x-s, y-s }; }
     constexpr Pos operator*(int s) const { return { x*s, y*s }; }
     constexpr Pos operator/(int s) const { return { x/s, y/s }; }
+    constexpr Pos operator%(int s) const { return { x%s, y%s }; }
 
     constexpr Pos& operator+=(const Pos& another) { *this = *this+another; return *this; }
     constexpr Pos& operator-=(const Pos& another) { *this = *this-another; return *this; }
     constexpr Pos& operator*=(const Pos& another) { *this = *this*another; return *this; }
+    constexpr Pos& operator/=(const Pos& another) { *this = *this/another; return *this; }
+    constexpr Pos& operator%=(const Pos& another) { *this = *this%another; return *this; }
+    constexpr Pos& operator+=(int s) { *this = *this+s; return *this; }
+    constexpr Pos& operator-=(int s) { *this = *this-s; return *this; }
     constexpr Pos& operator*=(int s) { *this = *this*s; return *this; }
     constexpr Pos& operator/=(int s) { *this = *this/s; return *this; }
+    constexpr Pos& operator%=(int s) { *this = *this%s; return *this; }
 
     [[nodiscard]] constexpr int dot  (const Pos& another) const { return x * another.x + y * another.y; }
     [[nodiscard]] constexpr int cross(const Pos& another) const { return x * another.y - y * another.x; }
@@ -328,14 +338,27 @@ struct Pos {
     constexpr explicit Pos(Direction dir) : x(dir.dx()), y(dir.dy()) {}
 
     constexpr void move(Direction dir) { *this += Pos(dir); }
-    void move(const Path& path) { for(const auto& dir : path) move(dir); }
+              void move(const Path& path) { for(const auto& dir : path) move(dir); }
     constexpr void move_toraly(Direction dir, const Pos& area) {
         move(dir);
         x = (x == -1 ? area.x-1 : (x==area.x ? 0 : x));
         y = (y == -1 ? area.y-1 : (y==area.y ? 0 : y));
     }
-    void move_toraly(const Path& path, const Pos& area) { for(const auto& dir : path) move_toraly(dir, area); }
+    constexpr void move_toraly(const Pos& dp, const Pos& area) {
+        *this += (dp%area);
+        x = (x + area.x) % area.x;
+        y = (y + area.y) % area.y;
+    }
+              void move_toraly(const Path& path, const Pos& area) { for(const auto& dir : path) move_toraly(dir, area); }
 
+    constexpr Pos get_moved_pos(Direction dir)    const { Pos p = *this; p.move(dir ); return p; }
+              Pos get_moved_pos(const Path& path) const { Pos p = *this; p.move(path); return p; }
+    constexpr Pos get_moved_toraly_pos(Direction dir,    const Pos& area) const { Pos p = *this; p.move_toraly(dir,  area); return p; }
+    constexpr Pos get_moved_toraly_pos(const Pos& dp,    const Pos& area) const { Pos p = *this; p.move_toraly(dp,   area); return p; }
+              Pos get_moved_toraly_pos(const Path& path, const Pos& area) const { Pos p = *this; p.move_toraly(path, area); return p; }
+
+    [[nodiscard]] int calc_mh_dist(const Pos& other) const { return abs(x-other.x) + abs(y-other.y); }
+    [[nodiscard]] int calc_mh_dist_toraly(const Pos& other, const Pos& area) const { return min(area.x-abs(x-other.x), abs(x-other.x)) + min(area.y-abs(y-other.y), abs(y-other.y)); }
 
     [[nodiscard]] constexpr bool in_area(const Pos& area) const { return 0 <= x && x < area.x && 0 <= y && y < area.y; }
 
@@ -352,7 +375,6 @@ istream& operator>>(istream& is, Pos& v) {
     is >> v.x >> v.y;
     return is;
 }
-
 
 namespace Random {
     using uint = unsigned int;
@@ -493,28 +515,26 @@ namespace Utility {
     }
 }
 
+
 namespace Constant {
     constexpr Size WINDOW_RATIO(16, 9);
-    constexpr Size RIGHT_BAR_RATIO(6, 1);
-
     constexpr Size SCENE_SIZE(1920, 1080);
-    constexpr Size MARGIN(10,10);
-    constexpr Size ACTUAL_FRAGS_AREA_SIZE(SCENE_SIZE.y, SCENE_SIZE.y);
 
-    constexpr Size FRAGS_AREA_SIZE = ACTUAL_FRAGS_AREA_SIZE - MARGIN*2;
+    constexpr Size MARGIN(10,10);
+
+    constexpr Size MAXIMUM_FRAGS_AREA_SIZE(SCENE_SIZE.y, SCENE_SIZE.y);
+    constexpr Size FRAGS_AREA_SIZE = MAXIMUM_FRAGS_AREA_SIZE - MARGIN*2;
     constexpr Size FRAGS_AREA_TL = MARGIN;
     constexpr Size FRAGS_AREA_BR = FRAGS_AREA_TL + FRAGS_AREA_SIZE;
 
-    constexpr Size ACTUAL_RIGHT_BAR_AREA_SIZE(SCENE_SIZE.x - ACTUAL_FRAGS_AREA_SIZE.x, SCENE_SIZE.y);
-
-    constexpr Size RIGHT_BAR_AREA_SIZE = ACTUAL_RIGHT_BAR_AREA_SIZE - MARGIN*2;
-    constexpr Size RIGHT_BAR_AREA_TL = MARGIN + Size(ACTUAL_FRAGS_AREA_SIZE.x, 0);
+    constexpr Size MAXIMUM_RIGHT_BAR_AREA_SIZE(SCENE_SIZE.x - MAXIMUM_FRAGS_AREA_SIZE.x, SCENE_SIZE.y);
+    constexpr Size RIGHT_BAR_AREA_SIZE = MAXIMUM_RIGHT_BAR_AREA_SIZE - MARGIN*2;
+    constexpr Size RIGHT_BAR_AREA_TL = MARGIN + Size(MAXIMUM_FRAGS_AREA_SIZE.x, 0);
     constexpr Size RIGHT_BAR_AREA_BR = RIGHT_BAR_AREA_TL + RIGHT_BAR_AREA_SIZE;
 
     constexpr int MAX_DIV_NUM_Y = 16;
     constexpr int MAX_DIV_NUM_X = 16;
-    constexpr Pos DIV_NUM(MAX_DIV_NUM_X, MAX_DIV_NUM_Y);
-
+    constexpr Size MAX_DIV_NUM(MAX_DIV_NUM_X, MAX_DIV_NUM_Y);
 
     constexpr Vec3 WORST_VCOLOR(0, 163, 129);
     constexpr Vec3 BEST_VCOLOR(23,24,75);
@@ -530,23 +550,6 @@ namespace Constant {
     constexpr Color PAUSE_BUTTON_COLOR(158, 161, 163);
     constexpr Color REPEAT_BUTTON_COLOR(56, 180, 139);
     constexpr Color DO_NOT_REPEAT_BUTTON_COLOR(234, 244, 252);
-}
-
-void move_toraly(Pos& p, const Pos& dp, const Pos& div_num) {
-    p += dp;
-    p.x = (p.x + div_num.x) % div_num.x;
-    p.y = (p.y + div_num.y) % div_num.y;
-}
-void move_toraly(Pos& p, const Direction& dir, const Pos& div_num) {
-    move_toraly(p, Pos(dir), div_num);
-}
-Pos get_moved_toraly_pos(Pos p, const Pos& dp, const Pos& div_num) {
-    move_toraly(p, dp, div_num);
-    return p;
-}
-Pos get_moved_toraly_pos(Pos p, const Direction& dir, const Pos& div_num) {
-    move_toraly(p, dir, div_num);
-    return p;
 }
 
 namespace krGUI {
@@ -584,10 +587,9 @@ namespace krGUI {
 
 struct ProblemSettings {
     Pos div_num;
-    int frag_size;
     int selectable_times;
     int select_cost, swap_cost;
-    ProblemSettings() : div_num(1,1), frag_size(0), selectable_times(0), select_cost(INT_MAX), swap_cost(INT_MAX) {}
+    ProblemSettings() : div_num(1,1), selectable_times(0), select_cost(INT_MAX), swap_cost(INT_MAX) {}
     bool load(const string& prob_dir_path) {
         Pos pix_num;
         ifstream ifs(prob_dir_path + "/prob.txt");
@@ -595,31 +597,34 @@ struct ProblemSettings {
         Utility::input_from(ifs, div_num, selectable_times, select_cost, swap_cost, pix_num);
         if (pix_num.y * div_num.x != pix_num.x * div_num.y) {
             cerr << "h_pix / h_div != w_pix / w_div" << endl;
-            exit(-1);
         }
-        frag_size = pix_num.y / div_num.y;
         return true;
     }
 };
 
-class FragmentImages {
-    Grid<double> rotations;
-    Grid<Texture> frags;
-
-public:
-    FragmentImages() : rotations(Constant::MAX_DIV_NUM_X, Constant::MAX_DIV_NUM_Y), frags(Constant::MAX_DIV_NUM_X, Constant::MAX_DIV_NUM_Y) {}
-    bool load(const string& prob_dir_path, const ProblemSettings& settings) {
+struct FragmentImages {
+    Grid<Texture> textures;
+    FragmentImages() : textures(Constant::MAX_DIV_NUM) {}
+    bool load(const string& path, const ProblemSettings& settings) {
         const auto& div_num = settings.div_num;
-        ifstream ifs(prob_dir_path + "/original_state.txt");
-        if (!ifs) {
-            *this = FragmentImages();
-            rep(i, div_num.y) rep(j,div_num.x) {
-                stringstream ss;
-                ss << hex << uppercase << j << i << ".jpg";
-                frags[i][j] = Texture(Unicode::Widen(prob_dir_path) + U"/frags/" + Unicode::Widen(ss.str()));
-            }
-            return false;
+        rep(i, div_num.y) rep(j,div_num.x) {
+            stringstream ss;
+            ss << hex << uppercase << j << i << ".jpg";
+            textures[i][j] = Texture(Unicode::Widen(path) + U"/frags/" + Unicode::Widen(ss.str()));
+            if (!textures[i][j]) return false;
         }
+        return true;
+    }
+};
+
+struct OriginalState {
+    Grid<double> rotations;
+    Grid<Pos> orig_pos;
+    OriginalState() : rotations(Constant::MAX_DIV_NUM), orig_pos(Constant::MAX_DIV_NUM) {}
+    bool load(const string& path, const ProblemSettings& settings) {
+        const auto& div_num = settings.div_num;
+        ifstream ifs(path + "/original_state.txt");
+        if (!ifs) return false;
         string srotations;
         ifs >> srotations;
         rep(i, div_num.y) rep(j,div_num.x) {
@@ -627,38 +632,30 @@ public:
             ifs >> s;
             int idx = stoi(s, nullptr, 16);
             int x = idx / 16, y = idx % 16;
-
-            stringstream ss;
-            ss << hex << uppercase << x << y << ".jpg";
-            frags[i][j] = Texture(Unicode::Widen(prob_dir_path) + U"/frags/" + Unicode::Widen(ss.str()));
-
-            rotations[i][j] = (srotations[i*div_num.x+j]-'0')*90_deg;
+            orig_pos[y][x] = Pos(j,i);
+            rotations[y][x] = (srotations[i*div_num.x+j]-'0')*90_deg;
         }
         return true;
     }
-    void draw(const Pos& idx, const Vec2& size, const Vec2& TL) const {
-        frags[idx.y][idx.x].resized(size).rotated(rotations[idx.y][idx.x]).draw(TL);
-    }
 };
 
-struct SingleProcedure {
-    Pos selected_pos;
-    Direction dir;
-
-    SingleProcedure(Pos selected_pos) : selected_pos(selected_pos), dir() {}
-    SingleProcedure(Pos selected_pos, Direction dir) : selected_pos(selected_pos), dir(dir) {}
-};
-
-class Procedures {
+struct Procedures {
+    struct SingleProcedure {
+        Pos selected_pos;
+        Direction dir;
+        SingleProcedure() = default;
+        SingleProcedure(Pos selected_pos, Direction dir) : selected_pos(selected_pos), dir(dir) {}
+    };
     int swap_times;
     int max_istep;
-public:
     vector<vector<SingleProcedure>> procs;
 
     Procedures() : procs() {}
     bool load(const string& prob_dir_path, const ProblemSettings& settings) {
         ifstream ifs(prob_dir_path + "/procedure.txt");
         if (!ifs) { *this = Procedures(); return false; }
+
+        const auto& div_num = settings.div_num;
 
         swap_times = 0;
         string rotations;
@@ -673,393 +670,361 @@ public:
             int idx = stoi(sidx, nullptr, 16);
             Pos selected_pos(idx/16, idx%16);
             Path path = Path::from_string(spath);
-            vector<SingleProcedure> tmp_procs;
-            for(const auto& dir : path) {
-                tmp_procs.emplace_back(selected_pos, dir);
-                move_toraly(selected_pos, dir, settings.div_num);
+            vector<SingleProcedure> tmp;
+            for(const auto dir : path) {
+                tmp.emplace_back(selected_pos, dir);
+                selected_pos.move_toraly(dir, div_num);
             }
-            procs.push_back(tmp_procs);
+            procs.push_back(tmp);
             swap_times += path.size();
         }
-        max_istep = get_istep(make_pair(procs.size(), 0));
+        max_istep = procs.size() + swap_times + 1;
         return true;
     }
 
-    int get_istep(pair<int,int> now_step) const {
-        if (now_step.first == -1) return 0;
-        int istep = 0;
-        rep(i,now_step.first) {
-            istep++;
-            istep += procs[i].size();
+    tuple<int, int, int, int> get_progress(int istep) const {
+        const int n = procs.size();
+        int m = 0;
+        if (istep == 0) return {-1, n, 0, m};
+        istep--;
+        rep(i,procs.size()) {
+            m = procs[i].size();
+            if (istep <= m) return {i, n, istep, m};
+            istep -= procs[i].size()+1;
         }
-        istep++;
-        istep += now_step.second;
-        return istep;
-    }
-    int get_max_istep() const { return max_istep; }
-    int get_swap_times() const { return swap_times; }
-};
-
-class BoardState {
-    pair<int,int> now_step;
-    Pos now_selected_pos;
-    Grid<Pos> now_orig_pos;
-
-    int calc_mh_dist(const Pos& p, const Pos& div_num) const {
-        const auto& orig_pos = now_orig_pos[p.y][p.x];
-        const int x_dist = min(div_num.x - abs(p.x-orig_pos.x), abs(p.x-orig_pos.x));
-        const int y_dist = min(div_num.y - abs(p.y-orig_pos.y), abs(p.y-orig_pos.y));
-        const int mh_dist = x_dist + y_dist;
-        return mh_dist;
-    }
-    double calc_accuracy(const Pos& p, const Pos& div_num) const {
-        constexpr double coef = 0.2;
-        int penalty = calc_mh_dist(p, div_num);
-        return 1.-exp(-(double)penalty*coef);
-    }
-    Color get_color(const Pos& p, const Pos& div_num) const {
-        constexpr Vec3 worst_color = Constant::WORST_VCOLOR;
-        constexpr Vec3 best_color = Constant::BEST_VCOLOR;
-        constexpr Vec3 d_color = worst_color - best_color;
-        const double accuracy = calc_accuracy(p, div_num);
-        const Vec3 v_color = best_color + d_color*accuracy;
-        return Color(v_color.x, v_color.y, v_color.z);
-    }
-
-public:
-
-    struct DrawType {
-        enum FragType { Image, Color } frag_type;
-        enum InfoType { None, Dist, Pos } info_type;
-        DrawType() : frag_type(Color), info_type(None) {}
-        DrawType(FragType frag_type, InfoType info_type) : frag_type(frag_type), info_type(info_type) {}
-    };
-
-    BoardState() : now_step(-1,0), now_selected_pos(-1,-1), now_orig_pos(Constant::MAX_DIV_NUM_X, Constant::MAX_DIV_NUM_Y) {
-        rep(i,Constant::MAX_DIV_NUM_Y) {
-            rep(j,Constant::MAX_DIV_NUM_X) {
-                now_orig_pos[i][j] = Pos(j,i);
-            }
-        }
-    }
-    bool load(const string& prob_dir_path, const ProblemSettings& settings) {
-        const auto& div_num = settings.div_num;
-        ifstream ifs(prob_dir_path + "/original_state.txt");
-        if (!ifs) { *this = BoardState(); return false; }
-        string rotations;
-        ifs >> rotations;
-        rep(i, div_num.y) rep(j,div_num.x) {
-            string s;
-            ifs >> s;
-            int idx = stoi(s, nullptr, 16);
-            int x = idx / 16, y = idx % 16;
-            now_orig_pos[y][x] = Pos(j,i);
-        }
-        return true;
-    }
-
-    int transition_to_end(const Procedures& procs, const ProblemSettings& settings) {
-        const auto& div_num = settings.div_num;
-        int n = procs.procs.size();
-        if (now_step.first == n) return 0;
-        for (int th=1;;++th) {
-            // select
-            if (now_step.first == -1 || now_step.second == (int)procs.procs[now_step.first].size()) {
-                now_step.first++;
-                now_step.second = 0;
-                if (now_step.first == n) { now_selected_pos = Pos(-1,-1); return th; }
-                now_selected_pos = procs.procs[now_step.first][now_step.second].selected_pos;
-                continue;
-            }
-
-            // swap
-            const auto& sp = procs.procs[now_step.first][now_step.second];
-            const auto& now = sp.selected_pos;
-            const Pos next = get_moved_toraly_pos(now, sp.dir, div_num);
-            swap(now_orig_pos[now.y][now.x], now_orig_pos[next.y][next.x]);
-            now_selected_pos = next;
-            now_step.second++;
-        }
-    }
-    int transition_to_begin(const Procedures& procs, const ProblemSettings& settings) {
-        const auto& div_num = settings.div_num;
-        if (now_step.first == -1) return 0;
-
-        for(int th=-1;; --th) {
-            now_step.second--;
-
-            // select
-            if (now_step.second == -1) {
-                now_step.first--;
-                if (now_step.first == -1) { now_selected_pos = Pos(-1,-1); return th; }
-                now_step.second = procs.procs[now_step.first].size();
-                now_selected_pos = procs.procs[now_step.first].back().selected_pos;
-                move_toraly(now_selected_pos, procs.procs[now_step.first].back().dir, div_num);
-                continue;
-            }
-
-            // swap
-            const auto& sp = procs.procs[now_step.first][now_step.second];
-            const auto& prev = sp.selected_pos;
-            const Pos now = get_moved_toraly_pos(prev, sp.dir, div_num);
-            swap(now_orig_pos[now.y][now.x], now_orig_pos[prev.y][prev.x]);
-            now_selected_pos = prev;
-        }
-    }
-
-    int transition(int step, const Procedures& procs, const ProblemSettings& settings) {
-        const auto& div_num = settings.div_num;
-        if (step < 0) {
-            if (now_step.first == -1) return 0;
-
-            for(int th=-1; th>=step; --th) {
-                now_step.second--;
-
-                // select
-                if (now_step.second == -1) {
-                    now_step.first--;
-                    if (now_step.first == -1) { now_selected_pos = Pos(-1,-1); return th; }
-                    now_step.second = procs.procs[now_step.first].size();
-                    now_selected_pos = procs.procs[now_step.first].back().selected_pos;
-                    move_toraly(now_selected_pos, procs.procs[now_step.first].back().dir, div_num);
-                    continue;
-                }
-
-                // swap
-                const auto& sp = procs.procs[now_step.first][now_step.second];
-                const auto& prev = sp.selected_pos;
-                const Pos now = get_moved_toraly_pos(prev, sp.dir, div_num);
-                swap(now_orig_pos[now.y][now.x], now_orig_pos[prev.y][prev.x]);
-                now_selected_pos = prev;
-            }
-        } else {
-            int n = procs.procs.size();
-            if (now_step.first == n) return 0;
-
-            for (int th=1; th<=step; ++th) {
-                // select
-                if (now_step.first == -1 || now_step.second == (int)procs.procs[now_step.first].size()) {
-                    now_step.first++;
-                    now_step.second = 0;
-                    if (now_step.first == n) { now_selected_pos = Pos(-1,-1); return th; }
-                    now_selected_pos = procs.procs[now_step.first][now_step.second].selected_pos;
-                    continue;
-                }
-
-                // swap
-                const auto& sp = procs.procs[now_step.first][now_step.second];
-                const auto& now = sp.selected_pos;
-                const Pos next = get_moved_toraly_pos(now, sp.dir, div_num);
-                swap(now_orig_pos[now.y][now.x], now_orig_pos[next.y][next.x]);
-                now_selected_pos = next;
-                now_step.second++;
-            }
-        }
-        return step;
-    }
-
-    void draw_frags(const Size& TL, const Size& BR, const FragmentImages& frags, const ProblemSettings& settings, DrawType type) const {
-        const auto& div_num = settings.div_num;
-        const int length = (BR-TL).x / div_num.x;
-        const Vec2 size(length, length);
-        const Vec2 h_size(length/2., length/2.);
-
-        // draw frag and info except selected one
-        optional<Pos> idx(nullopt);
-        rep(i,div_num.y) rep(j,div_num.x) {
-            const Pos& p = now_orig_pos[i][j];
-
-            if (now_selected_pos == Pos(j,i)) { idx = Pos(j,i); continue; }
-
-            const Vec2 tmpTL = Vec2(TL.x, TL.y) + Vec2(j,i)*length;
-            const Vec2 center = tmpTL + h_size;
-
-            if (type.frag_type == DrawType::Image) frags.draw(p, size, tmpTL);
-            else Rect(tmpTL.x, tmpTL.y, size.x-2, size.y-2).rounded(3).draw(get_color(Pos(j,i), div_num));
-
-            if (type.info_type != DrawType::None) {
-                stringstream ss;
-                if (type.info_type == DrawType::Dist) {
-                    auto dist = calc_mh_dist(Pos(j,i), div_num);
-                    if (dist != 0) ss << dist;
-                }
-                else ss << uppercase << hex << p.x << p.y;
-
-                FontAsset(U"TextOnFrag")(Unicode::Widen(ss.str())).drawAt(center-Vec2(1,1), Constant::TEXT_ON_FRAG_COLOR);
-            }
-        }
-
-        // draw selected frag and info
-        if (idx) {
-            const int i = idx.value().y, j = idx.value().x;
-            const Pos& p = now_orig_pos[i][j];
-            const double offset = Periodic::Sine0_1(1.7s) * length/8. + length/10.;
-            const Vec2 tmpTL = Vec2(TL.x, TL.y) + Vec2(j,i)*length - Vec2(offset, offset);
-            const Vec2 center = tmpTL + h_size;
-            Rect(tmpTL.x, tmpTL.y, length).drawShadow(Vec2(offset, offset), 24, 6);
-
-            if (type.frag_type == DrawType::Image) frags.draw(p, size, tmpTL);
-            else Rect(tmpTL.x, tmpTL.y, size.x, size.y).rounded(3).draw(get_color(Pos(j,i), div_num));
-
-            if (type.info_type != DrawType::None) {
-                stringstream ss;
-                if (type.info_type == DrawType::Dist) {
-                    auto dist = calc_mh_dist(Pos(j,i), div_num);
-                    if (dist != 0) ss << dist;
-                }
-                else ss << uppercase << hex << p.x << p.y;
-
-                FontAsset(U"TextOnFrag")(Unicode::Widen(ss.str())).drawAt(center-Vec2(1,1), Constant::TEXT_ON_FRAG_COLOR);
-            }
-        }
-    }
-    void draw_frags_at_correct_pos(const Size& TL, const Size& BR, const FragmentImages& frags, const ProblemSettings& settings, DrawType type) const {
-        const auto& div_num = settings.div_num;
-        const int length = (BR-TL).x / div_num.x;
-        const Vec2 size(length, length);
-        const Vec2 h_size(length/2., length/2.);
-
-        // draw frag and info
-        rep(i,div_num.y) rep(j,div_num.x) {
-            const Pos& p = now_orig_pos[i][j];
-
-            const Vec2 tmpTL = Vec2(TL.x, TL.y) + Vec2(p.x,p.y)*length;
-            const Vec2 center = tmpTL + h_size;
-
-            if (type.frag_type == DrawType::Image) frags.draw(p, size, tmpTL);
-            else Rect(tmpTL.x, tmpTL.y, size.x-2, size.y-2).rounded(3).draw(get_color(Pos(j,i), div_num));
-
-            if (type.info_type != DrawType::None) {
-                stringstream ss;
-                if (type.info_type == DrawType::Dist) {
-                    auto dist = calc_mh_dist(Pos(j,i), div_num);
-                    if (dist != 0) ss << dist;
-                }
-                else ss << uppercase << hex << p.x << p.y;
-
-                FontAsset(U"TextOnFrag")(Unicode::Widen(ss.str())).drawAt(center-Vec2(1,1), Constant::TEXT_ON_FRAG_COLOR);
-            }
-        }
-    }
-    tuple<int, int, int, int, int, int> get_progress(const Procedures& procs) const {
-        const int N = procs.get_max_istep();
-        const int now = procs.get_istep(now_step);
-        const int n = procs.procs.size();
-        if (now_step.first == -1) return {-1, n, 0, 0, now, N};
-        else if (now_step.first == n) return {n, n, 0, 0, now, N};
-        else return {now_step.first, n, now_step.second, procs.procs[now_step.first].size(), now, N};
+        return {n, n, 0, 0};
     }
 };
 
+enum Progress { failed, initial, restoration, procedure };
 
 struct Context {
-    int32 score = 0;
-    ProblemSettings problem_settings;
-    FragmentImages frags;
-    BoardState state;
-    Procedures procs;
+    int score;
+    Progress progress;
     string prob_hash;
+    string prob_dir_path;
+    ProblemSettings settings;
+    FragmentImages frags;
+    OriginalState orig_state;
+    Procedures procedures;
 
-    void load(const string& prob_dir_path) {
-        filesystem::path path(prob_dir_path);
-        prob_hash = path.filename();
-        problem_settings.load(prob_dir_path);
-        frags.load(prob_dir_path, problem_settings);
-        state.load(prob_dir_path, problem_settings);
-        procs.load(prob_dir_path, problem_settings);
+    void init(const string& path) {
+        prob_dir_path = path;
+        prob_hash = filesystem::path(path).filename();
+        reload();
+    }
+    void reload() {
+        if (!settings.load(prob_dir_path) || !frags.load(prob_dir_path, settings)) progress = Progress::failed;
+        else if (!orig_state.load(prob_dir_path, settings)) progress = Progress::initial;
+        else if (!procedures.load(prob_dir_path, settings)) progress = Progress::restoration;
+        else progress = Progress::procedure;
     }
 };
 
 using App = SceneManager<String, Context>;
 
-class RestorationVisualizer : public App::Scene {
-    void draw_frags() const {
+class InitialSetting : public App::Scene {
+public:
 
-        const auto& settings = getData().problem_settings;
-        const auto& frags = getData().frags;
-        const auto& state = getData().state;
+    InitialSetting(const InitData& init) : IScene(init) {}
 
-        constexpr Size AREA_TL = Constant::FRAGS_AREA_TL;
-        constexpr Size AREA_BR = Constant::FRAGS_AREA_BR;
-        constexpr int w = Constant::FRAGS_AREA_BR.x - Constant::FRAGS_AREA_TL.x;
-        constexpr int h = Constant::FRAGS_AREA_BR.y - Constant::FRAGS_AREA_TL.y;
-        const auto& div_num = settings.div_num;
-        const int frag_length = min(w/div_num.x, h/div_num.y);
-        const Size space(w-frag_length*div_num.x, h-frag_length*div_num.y);
+    void update() override {}
+    void draw() const override {}
+};
 
-        const Size TL = AREA_TL + space/2;
-        const Size BR = AREA_BR - space/2;
-        state.draw_frags_at_correct_pos(TL, BR, frags, settings, {BoardState::DrawType::Image, BoardState::DrawType::None});
+class Menu : public App::Scene {
+public:
+
+    Menu(const InitData& init) : IScene(init) {}
+
+    void update() override {}
+    void draw() const override {}
+};
+
+tuple<Vec2, Vec2, int> get_TL_BR_length_for_frags(const Pos& div_num) {
+    constexpr Vec2 AREA_TL = Constant::FRAGS_AREA_TL;
+    constexpr Vec2 AREA_BR = Constant::FRAGS_AREA_BR;
+    constexpr int w = Constant::FRAGS_AREA_BR.x - Constant::FRAGS_AREA_TL.x;
+    constexpr int h = Constant::FRAGS_AREA_BR.y - Constant::FRAGS_AREA_TL.y;
+    const int frag_length = min(w/div_num.x, h/div_num.y);
+    const Vec2 space(w-frag_length*div_num.x, h-frag_length*div_num.y);
+
+    const Vec2 TL = AREA_TL + space/2;
+    const Vec2 BR = AREA_BR - space/2;
+
+    return { TL, BR, frag_length };
+}
+
+// todo: save as text, sent to server
+class ImageRestorer : public App::Scene {
+    struct State {
+        inline static int cum_z_idx;
+        Vec2 pos;
+        int z_idx;
+        double rotation;
+    };
+    Grid<State> pos;
+    optional<Pos> moving;
+
+    void draw_frag() const {
+        const auto& div_num = getData().settings.div_num;
+        const auto& frags = getData().frags.textures;
+        const auto& [TL, BR, frag_length] = get_TL_BR_length_for_frags(div_num);
+        const Size size(frag_length, frag_length);
+        vector<pair<int, Pos>> v;
+        rep(i,div_num.y) rep(j,div_num.x) v.emplace_back(pos[i][j].z_idx, Pos(j,i));
+        sort(all(v));
+        for(const auto& a : v) {
+            const int i = a.second.y, j = a.second.x;
+            frags[i][j].resized(size).rotated(pos[i][j].rotation).drawAt(pos[i][j].pos);
+        }
     }
     void draw_info() const {
-        const auto& settings = getData().problem_settings;
-        const auto& procs = getData().procs;
+        const auto& settings = getData().settings;
         const auto& div_num = settings.div_num;
 
-        const int select_times = procs.procs.size();
-        const int select_cost = select_times * settings.select_cost;
-        const int swap_times = procs.get_swap_times();
-        const int swap_cost = swap_times * settings.swap_cost;
-        const int total_cost = select_cost + swap_cost;
-
         const Array<String> info_arr {
-                U"hash         : {}"_fmt(Unicode::Widen(getData().prob_hash)),
-                U"mode         : Restoration(program)",
-                U"div num      : {}x{}"_fmt(div_num.x, div_num.y),
-        };
+            U"hash         : {}"_fmt(Unicode::Widen(getData().prob_hash)),
+            U"mode         : Restoration(manual)",
+            U"div num      : {}x{}"_fmt(div_num.x, div_num.y),
+            };
 
         const Array<int> h_offset {
-                0,
-                100,
-                200,
-        };
+            0,
+            100,
+            200,
+            };
 
         const int w = 1100, h = 800;
         rep(i,info_arr.size()) {
             FontAsset(U"info")(info_arr[i]).draw(Arg::topLeft = Vec2(w,h+h_offset[i]),Palette::White);
         }
     };
+    void move_and_rotate_frag() {
+        static Vec2 offset;
+        if (MouseL.up()) moving = nullopt;
+
+        const auto& div_num = getData().settings.div_num;
+        const auto& [TL, BR, frag_length] = get_TL_BR_length_for_frags(div_num);
+
+        const bool rotation_flag = MouseR.down() || (KeyR.down() && !KeyCommand.pressed() && !KeyControl.pressed());
+        const bool move_flag = MouseL.down();
+        if (rotation_flag || move_flag) {
+            optional<Pos> opp;
+            rep(i,div_num.y) rep(j,div_num.x) {
+                const Point center((int)pos[i][j].pos.x, (int)pos[i][j].pos.y);
+                if (Rect(Arg::center(center), frag_length, frag_length).mouseOver()) {
+                    if (opp) {
+                        const auto& p = opp.value();
+                        if(pos[p.y][p.x].z_idx < pos[i][j].z_idx) opp = Pos(j,i);
+                    } else opp = Pos(j,i);
+                }
+            }
+            if (opp) {
+                const auto& p = opp.value();
+                if (rotation_flag) pos[p.y][p.x].rotation += 90_deg;
+                else {
+                    moving = opp;
+                    pos[p.y][p.x].z_idx = State::cum_z_idx++;
+                    offset = pos[p.y][p.x].pos - Vec2(Cursor::Pos().x, Cursor::Pos().y);
+                }
+            }
+        }
+
+        if (moving) {
+            const auto& p = moving.value();
+            if (KeyShift.pressed()) {
+                Vec2 cp = Cursor::Pos() - TL;
+                int y = cp.y / frag_length, x = cp.x / frag_length;
+                pos[p.y][p.x].pos = Vec2(x+0.5,y+0.5)*frag_length + TL;
+            } else  pos[p.y][p.x].pos = Cursor::Pos() + offset;
+            const auto size = Scene::Size();
+            chmax(pos[p.y][p.x].pos.x, 0.);
+            chmin(pos[p.y][p.x].pos.x, (double)size.x);
+            chmax(pos[p.y][p.x].pos.y, 0.);
+            chmin(pos[p.y][p.x].pos.y, (double)size.y);
+        }
+    }
+
+    void align_pos() {
+        const auto& div_num = getData().settings.div_num;
+        const auto& [TL, BR, frag_length] = get_TL_BR_length_for_frags(div_num);
+        optional<State> moving_state = nullopt;
+        if (moving) moving_state = pos[moving.value().y][moving.value().x];
+        vector<pair<double, pair<Pos, Pos>>> v;
+        rep(i,div_num.y) rep(j,div_num.x) {
+            const auto& p1 = pos[i][j].pos;
+            rep(y,div_num.y) rep(x,div_num.x) {
+                const auto& p2 = TL + Vec2(x+0.5, y+0.5)*frag_length;
+                const double mh_dist = abs(p1.x-p2.x) + abs(p1.y-p2.y);
+                const double penalty = mh_dist * mh_dist;
+                v.emplace_back(penalty, make_pair(Pos(j,i),Pos(x,y)));
+            }
+        }
+        sort(all(v));
+        rep(i,div_num.y) rep(j,div_num.x) pos[i][j].pos = Vec2(-1,-1);
+        set<Pos> s;
+        rep(i,v.size()) {
+            const Pos p1 = v[i].second.first;
+            const Pos p2 = v[i].second.second;
+
+            if (pos[p1.y][p1.x].pos.x < 0 && s.count(p2) == 0) {
+                pos[p1.y][p1.x].pos = TL + Vec2(p2.x+0.5,p2.y+0.5) * frag_length;
+                s.insert(p2);
+                PRINT(p1,p2);
+            }
+        }
+        if (moving_state) pos[moving.value().y][moving.value().x] = moving_state.value();
+    }
+
+public:
+
+    ImageRestorer(const InitData& init) : IScene(init), pos(Constant::MAX_DIV_NUM), moving(nullopt) {
+        const auto& progress = getData().progress;
+        const auto& div_num = getData().settings.div_num;
+        const auto& [TL, BR, frag_length] = get_TL_BR_length_for_frags(div_num);
+
+        if (progress == Progress::initial) {
+            rep(i,div_num.y) rep(j,div_num.x) {
+                const int y = i, x = j;
+                pos[i][j].pos = TL + (Vec2(x,y) + Vec2(0.5,0.5))*frag_length;
+                pos[i][j].z_idx = State::cum_z_idx++;
+                pos[i][j].rotation = 0;
+            }
+        } else {
+            const auto& orig_state = getData().orig_state;
+            rep(i,div_num.y) rep(j,div_num.x) {
+                const int x = orig_state.orig_pos[i][j].x, y = orig_state.orig_pos[i][j].y;
+                pos[i][j].pos = TL + (Vec2(x,y) + Vec2(0.5,0.5))*frag_length;
+                pos[i][j].z_idx = State::cum_z_idx++;
+                pos[i][j].rotation = orig_state.rotations[i][j];
+            }
+        }
+    }
+
+    void update() override {
+        if (KeyE.down()) changeScene(U"RestorationVisualizer");
+        if (KeyTab.down()) changeScene(U"ProcedureVisualizer");
+        if (KeyA.down()) align_pos();
+        move_and_rotate_frag();
+    }
+    void draw() const override {
+        draw_info();
+        draw_frag();
+    }
+};
+
+class RestorationVisualizer : public App::Scene {
+    void draw_frag() const {
+        const auto& div_num = getData().settings.div_num;
+        const auto& frags = getData().frags.textures;
+        const auto& orig_state = getData().orig_state;
+        const auto& [TL, BR, frag_length] = get_TL_BR_length_for_frags(div_num);
+
+        const Size size(frag_length, frag_length);
+        rep(i,div_num.y) rep(j,div_num.x) {
+            const int J = orig_state.orig_pos[i][j].x, I = orig_state.orig_pos[i][j].y;
+            const Vec2 pos = TL + Vec2(J+0.5,I+0.5)*frag_length;
+            frags[i][j].resized(size).rotated(orig_state.rotations[i][j]).drawAt(pos);
+        }
+    }
+    void draw_info() const {
+        const auto& settings = getData().settings;
+        const auto& div_num = settings.div_num;
+
+        const Array<String> info_arr {
+            U"hash         : {}"_fmt(Unicode::Widen(getData().prob_hash)),
+            U"mode         : Restoration(program)",
+            U"div num      : {}x{}"_fmt(div_num.x, div_num.y),
+        };
+
+        const Array<int> h_offset {
+            0,
+            100,
+            200,
+        };
+
+        const int w = 1100, h = 500;
+        rep(i,info_arr.size()) {
+            FontAsset(U"info")(info_arr[i]).draw(Arg::topLeft = Vec2(w,h+h_offset[i]),Palette::White);
+        }
+    }
+
 public:
 
     RestorationVisualizer(const InitData& init) : IScene(init) {}
 
-    void update() override {}
-    void draw() const override {
-        draw_info();
-        draw_frags();
+    void update() override {
+        if (KeyE.down()) changeScene(U"ImageRestorer");
+        if (KeyTab.down()) changeScene(U"ProcedureVisualizer");
     }
-};
-
-class RestorationEditor : public App::Scene {
-
+    void draw() const override {
+        draw_frag();
+        draw_info();
+    }
 };
 
 namespace PlaybackMenu {
     namespace Impl {
         int now_step = 0;
+        int max_step = 0;
         bool holding = false;
         bool loop_playback = false;
         double seek_bar_rate = 0;
         double playback_speed = 1.;
         double playback_speed_magnification = 1.;
-        double cumulative_diff_step = 0;
+        double cum_diff_step = 0;
         enum { Play, Reverse, Pause } prev_type = Play, play_type = Pause;
 
-        void draw_seek_bar(const Size& TL, const Size& BR) {
+        constexpr Size TL = Constant::RIGHT_BAR_AREA_TL + Size(0, Constant::RIGHT_BAR_AREA_SIZE.y * 6/7);
+        constexpr Size BR = Constant::RIGHT_BAR_AREA_BR;
+
+        void draw_seek_bar() {
             const int h = (BR.y-TL.y);
             const int w = (BR.x-TL.x);
             const Vec2 s(TL.x + w/8.4, TL.y+h/2), t(BR.x-w/30, TL.y+h/2);
             string id = "001";
 
-            Impl::holding = krGUI::seek_bar(Impl::seek_bar_rate, 0, 1., s, t, id);
+            seek_bar_rate = (double)now_step / max_step;
+            holding = krGUI::seek_bar(seek_bar_rate, 0, 1., s, t, id);
         }
-        void draw_playback_button(const Size& TL, const Size& BR) {
+        void draw_playback_button() {
+            const int h = (BR.y-TL.y);
+            const int w = (BR.x-TL.x);
+
+            // draw playback state
+            if (play_type == Pause) {
+                const Size size(30,30);
+                const Point pos(TL.x+w/13, TL.y + h/2 + 1);
+
+                if (prev_type == Play) TextureAsset(U"play").resized(size).drawAt(pos, Constant::PLAY_BUTTON_COLOR);
+                else TextureAsset(U"play").resized(size).rotated(180_deg).drawAt(pos, Constant::PLAY_BUTTON_COLOR);
+            } else {
+                constexpr Size size(30,30);
+                const Point pos(TL.x+w/13, TL.y + h/2 + 1);
+
+                TextureAsset(U"pause").resized(size).drawAt(pos, Constant::PAUSE_BUTTON_COLOR);
+            }
+
+            // repeat
+            {
+                const Point pos(TL.x+w/56, TL.y + h/2 + 3);
+
+                if (loop_playback) {
+                    FontAsset(U"repeat")(U"🔁").drawAt(pos, Constant::REPEAT_BUTTON_COLOR);
+                    Circle(pos.x, pos.y+27, 4).draw(Constant::REPEAT_BUTTON_COLOR);
+                } else FontAsset(U"repeat")(U"🔁").drawAt(pos, Constant::DO_NOT_REPEAT_BUTTON_COLOR);
+            }
+        }
+        void update_playback_button() {
             const int h = (BR.y-TL.y);
             const int w = (BR.x-TL.x);
 
             if (holding) play_type = Pause;
 
-            // change state by key
+            if (!loop_playback && (now_step == 0 || now_step == max_step) && play_type != Pause) prev_type = play_type, play_type = Pause;
+
+            // change playback state by key
             if (KeySpace.down()) {
                 if (play_type == Pause) play_type = prev_type;
                 else prev_type = play_type, play_type = Pause;
@@ -1067,7 +1032,7 @@ namespace PlaybackMenu {
                 prev_type = play_type = (prev_type == Play ? Reverse : Play);
             }
 
-            // change state by mouse
+            // change playback state by mouse
             if (play_type == Pause) {
                 constexpr Size size(30,30);
                 constexpr Size h_size = size/2;
@@ -1092,46 +1057,12 @@ namespace PlaybackMenu {
                 else if (tr.rightClicked()) prev_type = play_type = (prev_type == Play ? Reverse : Play);
             }
 
-            // draw state
-            if (play_type == Pause) {
-                const Size size(30,30);
-                const Size h_size = size/2;
-                const Point pos(TL.x+w/13, TL.y + h/2 + 1);
-                const Point trp1 = pos - h_size;
-                const Point trp2(pos.x-h_size.x, pos.y+h_size.y);
-                const Point trp3(pos.x+h_size.x, pos.y);
-
-                if (prev_type == Play) TextureAsset(U"play").resized(size).drawAt(pos, Constant::PLAY_BUTTON_COLOR);
-                else TextureAsset(U"play").resized(size).rotated(180_deg).drawAt(pos, Constant::PLAY_BUTTON_COLOR);
-            } else {
-                constexpr Size size(30,30);
-                constexpr Size h_size = size/2;
-                const Point pos(TL.x+w/13, TL.y + h/2 + 1);
-
-                TextureAsset(U"pause").resized(size).drawAt(pos, Constant::PAUSE_BUTTON_COLOR);
-            }
-
-            // repeat button
+            // repeat
             {
                 const Point pos(TL.x+w/56, TL.y + h/2 + 3);
-
                 Rect rect(pos.x - 20, pos.y - 15, 40, 28);
-
                 if (rect.leftClicked() || KeyC.down()) loop_playback = !loop_playback;
-
-                if (loop_playback) {
-                    FontAsset(U"repeat")(U"🔁").drawAt(pos, Constant::REPEAT_BUTTON_COLOR);
-                    Circle(pos.x, pos.y+27, 4).draw(Constant::REPEAT_BUTTON_COLOR);
-                } else FontAsset(U"repeat")(U"🔁").drawAt(pos, Constant::DO_NOT_REPEAT_BUTTON_COLOR);
             }
-        }
-        void draw_progress(const Size& TL, const Size& BR, const Context& ctx) {
-            const auto& procs = ctx.procs;
-            const auto& state = ctx.state;
-
-            auto [a,n,b,m,now,N] = state.get_progress(procs); N = (N == 0 ? -1 : N);
-            FontAsset(U"progress")(U"progress: {:>3}/{:<3}, {:>5}/{:<5}, {:>5}/{:<5}({:>3}.{}[%])"_fmt(a,n,b,m,now,N,now*100/N,(now*1000/N)%10))
-                .drawAt(TL.x+475, BR.y-35, Palette::White);
         }
 
         void update_speed() {
@@ -1152,11 +1083,12 @@ namespace PlaybackMenu {
                 if (mag > 11.) mag = 0.1;
             }
         }
+
         void cumulate_diff_step_by_key() {
-            if (KeyL.down()) cumulative_diff_step = (int)cumulative_diff_step+1*max(1.,playback_speed_magnification);
-            if (KeyH.down()) cumulative_diff_step = (int)cumulative_diff_step-1*max(1.,playback_speed_magnification);
-            if (KeyK.pressed()) cumulative_diff_step += playback_speed * playback_speed_magnification;
-            if (KeyJ.pressed()) cumulative_diff_step -= playback_speed * playback_speed_magnification;
+            if (KeyL.down()) cum_diff_step = (int)cum_diff_step+1*max(1.,playback_speed_magnification);
+            if (KeyH.down()) cum_diff_step = (int)cum_diff_step-1*max(1.,playback_speed_magnification);
+            if (KeyK.pressed()) cum_diff_step += playback_speed * playback_speed_magnification;
+            if (KeyJ.pressed()) cum_diff_step -= playback_speed * playback_speed_magnification;
 
             if (play_type != Pause && (KeyL.down() || KeyH.down() || KeyK.pressed() || KeyJ.pressed())) {
                 prev_type = play_type;
@@ -1165,109 +1097,199 @@ namespace PlaybackMenu {
         }
         void cumulate_diff_step_by_playback_button() {
             int play_dir = (play_type == Pause ? 0 : (play_type == Play ? 1 : -1));
-            cumulative_diff_step += play_dir * playback_speed * playback_speed_magnification;
+            cum_diff_step += play_dir * playback_speed * playback_speed_magnification;
         }
-        void cumulate_diff_step_by_seek_bar(const int max_step) {
-            cumulative_diff_step += seek_bar_rate * max_step - now_step;
+        void cumulate_diff_step_by_seek_bar() {
+            cum_diff_step += seek_bar_rate * max_step - now_step;
         }
-        void transition(Context& ctx) {
-            const auto& settings = ctx.problem_settings;
-            const auto& procs = ctx.procs;
-            auto& state = ctx.state;
 
-            int diff_step = cumulative_diff_step;
-            int actual_diff_step = state.transition(diff_step, procs, settings);
-            now_step += actual_diff_step;
-
-            if (loop_playback || KeySpace.pressed()) {
-                cumulative_diff_step -= actual_diff_step;
-                while(abs(cumulative_diff_step) >= 1) {
-                    if (cumulative_diff_step > 0) {
-                        state.transition_to_begin(procs, settings);
-                        now_step = 0;
-                        cumulative_diff_step -= 1;
-                    } else {
-                        state.transition_to_end(procs, settings);
-                        now_step = procs.get_max_istep();
-                        cumulative_diff_step += 1;
-                    }
-
-                    diff_step = cumulative_diff_step;
-                    actual_diff_step = state.transition(diff_step, procs, settings);
-                    now_step += actual_diff_step;
-                    cumulative_diff_step -= actual_diff_step;
-                }
-            } else cumulative_diff_step -= diff_step;
-
-
-            if (((now_step == 0 && play_type == Reverse) || (now_step == procs.get_max_istep() && play_type == Play)) && !loop_playback) play_type = Pause;
-            seek_bar_rate = (double)now_step / max((double)procs.get_max_istep(), 1e-8);
+        void update_step() {
+            int diff_step = static_cast<int>(cum_diff_step);
+            now_step += diff_step;
+            cum_diff_step -= diff_step;
+            if (loop_playback) {
+                if (now_step > max_step) now_step %= (max_step+1);
+                if (now_step < 0) now_step += (-now_step + max_step) / (max_step+1) * (max_step+1);
+            } else {
+                chmin(now_step, max_step);
+                chmax(now_step, 0);
+            }
         }
     }
 
-    void update(Context& ctx) {
+    void init(const Context& ctx) {
+        Impl::now_step = 0;
+        Impl::max_step = ctx.procedures.max_istep;
+        Impl::holding = false;
+        Impl::loop_playback = false;
+        Impl::seek_bar_rate = 0;
+        Impl::playback_speed = 1.;
+        Impl::playback_speed_magnification = 1.;
+        Impl::cum_diff_step = 0;
+        Impl::prev_type = Impl::Play;
+        Impl::play_type = Impl::Pause;
+    }
+
+    int get_now_step() { return Impl::now_step; }
+
+    void update_step() {
         Impl::update_speed();
+        Impl::update_playback_button();
 
         Impl::cumulate_diff_step_by_key();
         Impl::cumulate_diff_step_by_playback_button();
-        Impl::cumulate_diff_step_by_seek_bar(ctx.procs.get_max_istep());
+        Impl::cumulate_diff_step_by_seek_bar();
 
-        Impl::transition(ctx);
+        Impl::update_step();
     }
 
-    void draw(const Context& ctx) {
-        constexpr Size TL = Constant::RIGHT_BAR_AREA_TL + Size(0, Constant::RIGHT_BAR_AREA_SIZE.y * Constant::RIGHT_BAR_RATIO.x / (Constant::RIGHT_BAR_RATIO.x + Constant::RIGHT_BAR_RATIO.y));
-        constexpr Size BR = Constant::RIGHT_BAR_AREA_BR;
-
-        Impl::draw_seek_bar(TL, BR);
-        Impl::draw_playback_button(TL, BR);
-        Impl::draw_progress(TL,BR,ctx);
+    void draw() {
+        Impl::draw_seek_bar();
+        Impl::draw_playback_button();
     }
 }
+class ProcedureVisualizer : public App::Scene {
+    struct DrawType {
+        enum FragType { Image, Color } frag_type;
+        enum InfoType { None, Dist, Pos } info_type;
+        DrawType() : frag_type(Image), info_type(None) {}
+        DrawType(FragType frag_type, InfoType info_type) : frag_type(frag_type), info_type(info_type) {}
+    };
+    int now_step;
+    Pos now_selected_pos;
+    Grid<Pos> now_orig_pos, rev_now_orig_pos;
+    DrawType draw_type;
 
-class ProceduresVisualizer : public App::Scene {
-    inline static BoardState::DrawType draw_frag_type;
-    void update_draw_frag_type() {
+    double calc_accuracy(const Pos& p) const {
+        const auto& div_num = getData().settings.div_num;
+        constexpr double coef = 0.2;
+        int penalty = p.calc_mh_dist_toraly(now_orig_pos[p.y][p.x], div_num);
+        return 1.-exp(-(double)penalty*coef);
+    }
+    Color get_color(const Pos& p) const {
+        constexpr Vec3 worst_color = Constant::WORST_VCOLOR;
+        constexpr Vec3 best_color = Constant::BEST_VCOLOR;
+        constexpr Vec3 d_color = worst_color - best_color;
+        const double accuracy = calc_accuracy(p);
+        const Vec3 v_color = best_color + d_color*accuracy;
+        return Color(v_color.x, v_color.y, v_color.z);
+    }
+
+    void update_draw_type() {
         if (KeyZ.down()) {
-            if (draw_frag_type.frag_type == BoardState::DrawType::Image)
-                draw_frag_type.frag_type = BoardState::DrawType::Color;
-            else draw_frag_type.frag_type = BoardState::DrawType::Image;
+            if (draw_type.frag_type == DrawType::Image)
+                draw_type.frag_type = DrawType::Color;
+            else draw_type.frag_type = DrawType::Image;
         }
         if (KeyX.down()) {
-            if (draw_frag_type.info_type == BoardState::DrawType::None)
-                draw_frag_type.info_type = BoardState::DrawType::Dist;
-            else if (draw_frag_type.info_type == BoardState::DrawType::Dist)
-                draw_frag_type.info_type = BoardState::DrawType::Pos;
-            else draw_frag_type.info_type = BoardState::DrawType::None;
+            if (draw_type.info_type == DrawType::None)
+                draw_type.info_type = DrawType::Dist;
+            else if (draw_type.info_type == DrawType::Dist)
+                draw_type.info_type = DrawType::Pos;
+            else draw_type.info_type = DrawType::None;
         }
     }
-    void draw_frags() const {
+    void transition() {
+        const auto& div_num = getData().settings.div_num;
+        const auto& procs = getData().procedures;
+        const int next_step = PlaybackMenu::get_now_step();
+        const int diff_step = next_step - now_step;
+        auto [iselect, n, iswap, m] = procs.get_progress(now_step);
+        now_step += diff_step;
+        if (diff_step < 0) {
+            for(int th=-1; th>=diff_step; --th) {
+                iswap--;
 
-        const auto& settings = getData().problem_settings;
-        const auto& frags = getData().frags;
-        const auto& state = getData().state;
+                // select
+                if (iswap == -1) {
+                    iselect--;
+                    if (iselect == -1) { now_selected_pos = Pos(-1,-1); return; }
+                    iswap = procs.procs[iselect].size();
+                    now_selected_pos = procs.procs[iselect].back().selected_pos;
+                    now_selected_pos.move_toraly(procs.procs[iselect].back().dir, div_num);
+                    continue;
+                }
 
-        constexpr Size AREA_TL = Constant::FRAGS_AREA_TL;
-        constexpr Size AREA_BR = Constant::FRAGS_AREA_BR;
-        constexpr int w = Constant::FRAGS_AREA_BR.x - Constant::FRAGS_AREA_TL.x;
-        constexpr int h = Constant::FRAGS_AREA_BR.y - Constant::FRAGS_AREA_TL.y;
-        const auto& div_num = settings.div_num;
-        const int frag_length = min(w/div_num.x, h/div_num.y);
-        const Size space(w-frag_length*div_num.x, h-frag_length*div_num.y);
+                // swap
+                const auto& sp = procs.procs[iselect][iswap];
+                const Pos prev = sp.selected_pos;
+                const Pos now = prev.get_moved_toraly_pos(sp.dir, div_num);
+                swap(now_orig_pos[now.y][now.x], now_orig_pos[prev.y][prev.x]);
+                swap(rev_now_orig_pos[now.y][now.x], rev_now_orig_pos[prev.y][prev.x]);
+                now_selected_pos = prev;
+            }
+        } else if (diff_step > 0) {
+            for (int th=1; th<=diff_step; ++th) {
+                // select
+                if (iselect == -1 || iswap == (int)procs.procs[iselect].size()) {
+                    iselect++;
+                    iswap = 0;
+                    if (iselect == n) { now_selected_pos = Pos(-1,-1); return; }
+                    now_selected_pos = procs.procs[iselect][iswap].selected_pos;
+                    continue;
+                }
 
-        const Size TL = AREA_TL + space/2;
-        const Size BR = AREA_BR - space/2;
-        state.draw_frags(TL, BR, frags, settings, draw_frag_type);
+                // swap
+                const auto& sp = procs.procs[iselect][iswap];
+                const auto& now = sp.selected_pos;
+                const Pos next = now.get_moved_toraly_pos(sp.dir, div_num);
+                swap(now_orig_pos[now.y][now.x], now_orig_pos[next.y][next.x]);
+                swap(rev_now_orig_pos[now.y][now.x], rev_now_orig_pos[next.y][next.x]);
+                now_selected_pos = next;
+                iswap++;
+            }
+        }
     }
 
+    void draw_progress() const {
+        constexpr Size TL = Constant::RIGHT_BAR_AREA_TL + Size(0, Constant::RIGHT_BAR_AREA_SIZE.y * 6/7);
+        constexpr Size BR = Constant::RIGHT_BAR_AREA_BR;
+        const auto& procs = getData().procedures;
+        int N = procs.max_istep;
+        auto [a,n,b,m] = procs.get_progress(now_step);
+        FontAsset(U"progress")(U"progress: {:>3}/{:<3}, {:>5}/{:<5}, {:>5}/{:<5}({:>3}.{}[%])"_fmt(a,n,b,m,now_step,N,now_step*100/N,(now_step*1000/N)%10))
+        .drawAt(TL.x+475, BR.y-35, Palette::White);
+    }
+    void draw_frags() const {
+        const auto& div_num = getData().settings.div_num;
+        const auto& frags = getData().frags.textures;
+        const auto& orig_state = getData().orig_state;
+        const auto& [TL, BR, frag_length] = get_TL_BR_length_for_frags(div_num);
+
+        const Size size(frag_length, frag_length);
+        const Size h_size = size / 2;
+
+        rep(i,div_num.y) rep(j,div_num.x) {
+            double offset = 0;
+            if (now_selected_pos == Pos(j,i)) offset = Periodic::Sine0_1(1.7s) * frag_length/8. + frag_length/10.;
+            const int x = rev_now_orig_pos[i][j].x, y = rev_now_orig_pos[i][j].y;
+            const Vec2 tmpTL = TL + Vec2(j,i)*size - Vec2(offset, offset);
+            const Vec2 center = tmpTL + h_size;
+
+            if (draw_type.frag_type == DrawType::Image) frags[y][x].resized(size).rotated(orig_state.rotations[y][x]).drawAt(center);
+            else Rect(tmpTL.x, tmpTL.y, size-Size(2,2)).rounded(3).draw(get_color(Pos(j,i)));
+
+            if (draw_type.info_type != DrawType::None) {
+                const Pos& p = now_orig_pos[i][j];
+                stringstream ss;
+                if (draw_type.info_type == DrawType::Dist) {
+                    int dist = Pos(j,i).calc_mh_dist_toraly(p, div_num);
+                    if (dist != 0) ss << dist;
+                }
+                else ss << uppercase << hex << p.x << p.y;
+
+                FontAsset(U"TextOnFrag")(Unicode::Widen(ss.str())).drawAt(center-Vec2(1,1), Constant::TEXT_ON_FRAG_COLOR);
+            }
+        }
+    }
     void draw_info() const {
-        const auto& settings = getData().problem_settings;
-        const auto& procs = getData().procs;
+        const auto& settings = getData().settings;
+        const auto& procs = getData().procedures;
         const auto& div_num = settings.div_num;
 
         const int select_times = procs.procs.size();
         const int select_cost = select_times * settings.select_cost;
-        const int swap_times = procs.get_swap_times();
+        const int swap_times = procs.swap_times;
         const int swap_cost = swap_times * settings.swap_cost;
         const int total_cost = select_cost + swap_cost;
 
@@ -1280,7 +1302,7 @@ class ProceduresVisualizer : public App::Scene {
             U"swap   times : {}"_fmt(swap_times),
             U"swap   costs :    x{} = {}"_fmt(settings.swap_cost, swap_cost),
             U"total  costs : {}"_fmt(total_cost),
-        };
+            };
 
         const Array<int> h_offset {
             0,
@@ -1297,107 +1319,34 @@ class ProceduresVisualizer : public App::Scene {
         rep(i,info_arr.size()) {
             FontAsset(U"info")(info_arr[i]).draw(Arg::topLeft = Vec2(w,h+h_offset[i]),Palette::White);
         }
-    };
+    }
 
 public:
 
-    ProceduresVisualizer(const InitData& init) : IScene(init) {
-
+    ProcedureVisualizer(const InitData& init) : IScene(init), now_step(0), now_selected_pos(-1,-1), now_orig_pos(Constant::MAX_DIV_NUM), rev_now_orig_pos(Constant::MAX_DIV_NUM), draw_type() {
+        PlaybackMenu::init(getData());
+        const auto& div_num = getData().settings.div_num;
+        const auto& orig_pos = getData().orig_state.orig_pos;
+        rep(i,div_num.y) rep(j,div_num.x) {
+            const int y = orig_pos[i][j].y, x = orig_pos[i][j].x;
+            now_orig_pos[i][j] = Pos(x,y);
+            rev_now_orig_pos[i][j] = Pos(j,i);
+        }
     }
 
     void update() override {
-/*
-        if (MouseR.down()) {
-            changeScene(U"Title");
-        }
-*/
 
-        update_draw_frag_type();
+        if (KeyTab.down()) changeScene(U"RestorationVisualizer");
 
-        PlaybackMenu::update(getData());
+        update_draw_type();
+        PlaybackMenu::update_step();
+        transition();
     }
-
     void draw() const override {
-        draw_info();
+        PlaybackMenu::draw();
+        draw_progress();
         draw_frags();
-        PlaybackMenu::draw(getData());
-    }
-};
-
-
-// タイトルシーン
-class Title : public App::Scene {
-public:
-
-    // コンストラクタ（必ず実装）
-    Title(const InitData& init)
-        : IScene(init)
-    {
-
-    }
-
-    // 更新関数
-    void update() override
-    {
-        // 左クリックで
-        if (MouseL.down())
-        {
-            // ゲームシーンに遷移
-            changeScene(U"Game");
-        }
-        if (MouseR.down()) {
-            changeScene(U"ProceduresVisualizer");
-        }
-    }
-
-    // 描画関数 (const 修飾)
-    void draw() const override
-    {
-        Scene::SetBackground(ColorF(0.3, 0.4, 0.5));
-
-        FontAsset(U"TitleFont")(U"My Game").drawAt(400, 100);
-
-        // 現在のスコアを表示
-        FontAsset(U"ScoreFont")(U"Score: {}"_fmt(getData().score)).draw(520, 540);
-
-        Circle(Cursor::Pos(), 50).draw(Palette::Orange);
-    }
-};
-
-// ゲームシーン
-class Game : public App::Scene {
-private:
-
-    Texture m_texture;
-
-public:
-
-    Game(const InitData& init)
-        : IScene(init)
-        , m_texture(Emoji(U"🐈"))
-    {
-
-    }
-
-    void update() override {
-        // 左クリックで
-        if (MouseL.down())
-        {
-            // タイトルシーンに遷移
-            changeScene(U"Title");
-        }
-
-        // マウスカーソルの移動でスコアが増加
-        getData().score += static_cast<int32>(Cursor::Delta().length() * 10);
-    }
-
-    void draw() const override {
-        Scene::SetBackground(ColorF(0.2, 0.8, 0.6));
-
-        m_texture.drawAt(Cursor::Pos());
-
-        // 現在のスコアを表示
-        FontAsset(U"ScoreFont")(U"Score: {}"_fmt(getData().score)).draw(40, 40);
+        draw_info();
     }
 };
 
@@ -1411,6 +1360,14 @@ void drawFPS() {
     const double fps = (double)elapseds.size() / (elapsed - elapseds.front());
     FontAsset(U"fps")(U"{:.3f}"_fmt(fps)).drawAt(pos, Palette::White);
     if (elapseds.size() >= 60) elapseds.pop();
+}
+
+void adjust_window_size_if_necessary() {
+    const int h = Window::ClientHeight(), w = Window::ClientWidth();
+    if (abs(h*Constant::WINDOW_RATIO.x - w*Constant::WINDOW_RATIO.y) > 10) {
+        Size size((int)(h*Constant::WINDOW_RATIO.x / Constant::WINDOW_RATIO.y), h);
+        Window::Resize(size, WindowResizeOption::KeepSceneSize, false);
+    }
 }
 
 void Main() {
@@ -1430,28 +1387,23 @@ void Main() {
     // ここで Context も初期化される
     App manager;
 
-//    manager.add<RestorationVisualizer>(U"RestorationVisualizer");
-
-    manager.add<ProceduresVisualizer>(U"ProceduresVisualizer");
-
-    // タイトルシーン（名前は U"Title"）を登録
-    manager.add<Title>(U"Title");
-
-    // ゲームシーン（名前は U"Game"）を登録
-    manager.add<Game>(U"Game");
+    manager.add<RestorationVisualizer>(U"RestorationVisualizer");
+    manager.add<ProcedureVisualizer>(U"ProcedureVisualizer");
+    manager.add<ImageRestorer>(U"ImageRestorer");
 
 
     manager.get()->score = 100000;
-    manager.get()->load("/Users/rk/Projects/procon32/.tmp_data/tmp");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/40211b699f29d8b5077e1cc86a7f4f9d");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/4b119be5dbf5a0ececf00f506f5459b7");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/4eb0b7e9750cf7aad51a8cf11cc45131");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/5f58a788475f3c05f7295ebe82a3dc1e");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/66b9d56c5ccb3e886de0fbc1ae6ba2b3");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/9359558aafa91b63d7575b0aad245780");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/a89ea53bb8969322a6653a2a79b83a3b");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/a9df29717a478f25cec69f626bdd9bff");
-//    manager.get()->load("/Users/rk/Projects/procon32/.data/ba8d67aa3b80cfc934a9ee9b114cbd61");
+//    manager.get()->init("/Users/rk/Projects/procon32/.tmp_data/tmp");
+//    manager.get()->init("/Users/rk/Projects/procon32/.tmp_data/tmp");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/40211b699f29d8b5077e1cc86a7f4f9d");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/4b119be5dbf5a0ececf00f506f5459b7");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/4eb0b7e9750cf7aad51a8cf11cc45131");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/5f58a788475f3c05f7295ebe82a3dc1e");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/66b9d56c5ccb3e886de0fbc1ae6ba2b3");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/9359558aafa91b63d7575b0aad245780");
+    manager.get()->init("/Users/rk/Projects/procon32/.data/a89ea53bb8969322a6653a2a79b83a3b");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/a9df29717a478f25cec69f626bdd9bff");
+//    manager.get()->init("/Users/rk/Projects/procon32/.data/ba8d67aa3b80cfc934a9ee9b114cbd61");
 
 
     // set font
@@ -1470,20 +1422,13 @@ void Main() {
         FontAsset::Register(U"TextOnFrag", 28);
     }
 
-
     TextureAsset::Register(U"redo", Icon(0xf2f9, 100));
     TextureAsset::Register(U"play", Icon(0xf04b, 100));
     TextureAsset::Register(U"pause", Icon(0xf04c, 100));
 
     while (System::Update()) {
         // window resize if necessary
-        {
-            const int h = Window::ClientHeight(), w = Window::ClientWidth();
-            if (abs(h*Constant::WINDOW_RATIO.x - w*Constant::WINDOW_RATIO.y) > 10) {
-                Size size((int)(h*Constant::WINDOW_RATIO.x / Constant::WINDOW_RATIO.y), h);
-                Window::Resize(size, WindowResizeOption::KeepSceneSize, false);
-            }
-        }
+        adjust_window_size_if_necessary();
 
         // 現在のシーンを実行
         if (!manager.update()) break;
