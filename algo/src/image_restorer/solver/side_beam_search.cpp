@@ -1,3 +1,4 @@
+
 #include "side_beam_search.hpp"
 #include <bits/stdc++.h>
 #include <direction.hpp>
@@ -226,7 +227,7 @@ v2fp get_sorted_fragment_pair(const double *adjacency, const Vec2<int>& div_num)
     }
     return sorted_fp;
 }
-vector<ImageState> get_first_sorted_states(const v2fp& sorted_fp, const Vec2<int>& div_num, const unsigned int MAX_STATE_NUM) {
+vector<ImageState> get_initial_states(const v2fp& sorted_fp, const Vec2<int>& div_num, const unsigned int MAX_STATE_NUM) {
     const unsigned int N = div_num.y*div_num.x*4;
     vector<ImageState> current_states;
     Utility::reverse_priority_queue<FragmentPair> pq;
@@ -387,7 +388,6 @@ void sort_and_resize_states(vector<ImageState>& states, const unsigned int MAX_S
 Answer get_answer(const vector<ImageState>& sorted_states, const Settings& settings) {
     const auto& div_num = static_cast<Vec2<short unsigned int>>(settings.div_num);
     for(const auto& img_state : sorted_states) {
-        PRINT(img_state.now_size);
         unsigned int rotation_times_00 = img_state.get_00_rotation_times();
         const auto& now_size = img_state.now_size;
         if ((rotation_times_00%2 == 0 && now_size == div_num) || (rotation_times_00%2 == 1 && now_size.x == div_num.y && now_size.y == div_num.x)) {
@@ -409,8 +409,8 @@ Answer SideBeamSearchSolver::operator()(double *adjacency, const Settings& setti
     const auto& sorted_fp = get_sorted_fragment_pair(adjacency, div_num);
 
 
-    // 縦か横に二つ並べたStateを全列挙し、ソートしMAX_STATE_NUMまで取る
-    auto current_states = get_first_sorted_states(sorted_fp, div_num, MAX_STATE_NUM);
+    // 横に二つ並べたStateを全列挙し、ソートしMAX_STATE_NUMまで取る
+    auto current_states = get_initial_states(sorted_fp, div_num, MAX_STATE_NUM);
 
     const unsigned int STEP_NUM = div_num.y + div_num.x - 3;
 
@@ -427,4 +427,3 @@ Answer SideBeamSearchSolver::operator()(double *adjacency, const Settings& setti
     }
     return get_answer(current_states, settings);
 }
-
