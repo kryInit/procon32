@@ -37,13 +37,13 @@ struct RGB {
     constexpr RGB& operator/=(unsigned char s) { *this = *this/s; return *this; }
     constexpr RGB& operator%=(unsigned char s) { *this = *this%s; return *this; }
 
-    [[nodiscard]] constexpr Vec3<double> get_normalized() const {
+    [[nodiscard]] inline constexpr Vec3<double> get_normalized() const {
         return { static_cast<double>(r) / 255., static_cast<double>(g) / 255., static_cast<double>(b) / 255. };
     }
 
-    [[nodiscard]] Vec3<int> value() const { return {r, g, b}; }
+    [[nodiscard]] inline Vec3<int> value() const { return {r, g, b}; }
 };
 
-istream& operator>>(istream& is, RGB& c) { is >> c.r >> c.g >> c.b; return is; }
-ostream& operator<<(ostream& os, const RGB& c) { os << "\033[48;2;" << (int)c.r << ";" << (int)c.g << ";" << (int)c.b << "m  \033[m"; return os; }
+inline std::istream& operator>>(std::istream& is, RGB& c) { is >> c.r >> c.g >> c.b; return is; }
+inline std::ostream& operator<<(std::ostream& os, const RGB& c) { os << "\033[48;2;" << (int)c.r << ";" << (int)c.g << ";" << (int)c.b << "m  \033[m"; return os; }
 

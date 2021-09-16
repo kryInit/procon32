@@ -3,5 +3,5 @@
 
 class SideBeamSearchSolver : ISolver {
 public:
-    Answer operator()(double *adjacency, const Settings& settings) override;
+    Answer operator()(double *adjacency, const Settings& settings, int argc, char *argv[]) override;
 };

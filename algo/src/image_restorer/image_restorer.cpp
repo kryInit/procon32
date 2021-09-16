@@ -1,3 +1,4 @@
+#include <iostream>
 #include <fstream>
 #include <omp.h>
 #include <timing_device.hpp>
@@ -8,6 +9,7 @@
 #include <solvers.hpp>
 
 using namespace std;
+/*
 
 template<class ADJACENCY_EVALUATOR, class SOLVER>
 Answer solve(const Image& img, const Settings& settings) {
@@ -32,6 +34,7 @@ Answer solve(const Image& img, const Settings& settings) {
     return ans;
 }
 
+*/
 void dump_openmp_info() {
     printf("使用可能な最大スレッド数：%d\n", omp_get_max_threads());
 
@@ -47,8 +50,8 @@ int main(int argc, char *argv[]) {
     string frag_dir_path = string(argv[1]) + "/frags/";
     string settings_path = string(argv[1]) + "/prob.txt";
 
-    Settings settings;
-    settings.load(settings_path);
+    cout << settings_path << endl;
+    Settings settings(settings_path);
     settings.dump();
 
     Image img;
@@ -56,7 +59,28 @@ int main(int argc, char *argv[]) {
 //    img.dump();
     cout << "finish load" << endl;
 
+
+    TimingDevice td;
+
+    const unsigned int N = settings.div_num.x*settings.div_num.y*4;
+
+    td.restart();
+    auto *adjacency = new double[N*N];
+    OnePixelAdjacencyEvaluator()(img, settings, adjacency);
+    td.print_elapsed();
+
+    td.restart();
+    Answer ans = SideBeamSearchSolver()(adjacency, settings, argc, argv);
+    td.print_elapsed();
+
+    delete[] adjacency;
+
+
+/*
+
     Answer ans = solve<OnePixelAdjacencyEvaluator, SideBeamSearchSolver>(img, settings);
+*/
+
     string ans_path = string(argv[1]) + "/original_state.txt";
     std::ofstream ofs(ans_path);
     ofs << ans << endl;

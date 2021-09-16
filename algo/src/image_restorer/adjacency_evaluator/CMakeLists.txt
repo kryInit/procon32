@@ -1,3 +1,3 @@
 add_library(adjacency_evaluator one_pixel_adjacency_evaluator.cpp)
-target_link_libraries(adjacency_evaluator common_lib image_restorer_lib utility)
+target_link_libraries(adjacency_evaluator common_lib image_restorer_lib)
 target_include_directories(adjacency_evaluator PUBLIC ${PROJECT_SOURCE_DIR}/image_restorer/adjacency_evaluator)

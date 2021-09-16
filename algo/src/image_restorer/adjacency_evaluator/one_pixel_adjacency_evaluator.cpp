@@ -7,8 +7,8 @@ using namespace std;
 void OnePixelAdjacencyEvaluator::operator()(const Image& img, const Settings& settings, double *adjacency) {
 
     constexpr unsigned int size = 1;
-    auto frag_size = settings.FRAG_SIZE();
-    auto div_num = settings.DIV_NUM();
+    auto frag_size = settings.frag_size;
+    auto div_num = settings.div_num;
     RGB *perimeters = new RGB[div_num.y*div_num.x*4*frag_size];
     img.get_all_perimeter(size, perimeters);
 

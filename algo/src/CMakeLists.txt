@@ -24,11 +24,12 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
-add_subdirectory(utility)
+include_directories(utility)
+
 add_subdirectory(common_lib)
 add_subdirectory(image_restorer)
-add_subdirectory(build_procedure)
+#add_subdirectory(build_procedure)
 # add_executable(tmp tmp.cpp)
 
 #add_executable(main main.cpp)
-#target_link_libraries(main utility)
+#target_link_libraries(main common_lib)

@@ -1,3 +1,3 @@
 add_library(ir_solver side_beam_search.cpp)
-target_link_libraries(ir_solver common_lib image_restorer_lib utility)
+target_link_libraries(ir_solver common_lib image_restorer_lib)
 target_include_directories(ir_solver PUBLIC ${PROJECT_SOURCE_DIR}/image_restorer/solver)
