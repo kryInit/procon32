@@ -1291,7 +1291,7 @@ void check_ans(OriginalPositions initial_orig_pos, const Procedures &procs, cons
     }
 }
 
-Procedures KrSolver::operator()(const OriginalPositions& original_positions, const Settings& settings) {
+Procedures KrSolver::operator()(const OriginalPositions& original_positions, const Settings& settings, int argc, char *argv[]) {
     const Vec2<int> div_num = static_cast<Vec2<int>>(settings.div_num);
     const int selectable_times = settings.selectable_times;
     const int select_cost = settings.choice_cost;

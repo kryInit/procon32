@@ -5,5 +5,5 @@
 
 class ISolver {
 public:
-    virtual Procedures operator()(const OriginalPositions& original_positions, const Settings& settings) = 0;
+    virtual Procedures operator()(const OriginalPositions& original_positions, const Settings& settings, int argc, char *argv[]) = 0;
 };

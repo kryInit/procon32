@@ -240,7 +240,7 @@ void check_ans(OriginalPositions initial_orig_pos, Procedures &procs, Vec2<int> 
     }
 }
 
-Procedures SimpleSolver::operator()(const OriginalPositions& original_positions, const Settings& settings) {
+Procedures SimpleSolver::operator()(const OriginalPositions& original_positions, const Settings& settings, int argc, char *argv[]) {
     // now_orig_pos[i][j] = (x,y): 今の画像で(j,i)の位置にある断片の元座標は(x,y)
     // now_orig_posが並んだら終了
 
