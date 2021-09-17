@@ -28,7 +28,7 @@ include_directories(utility)
 
 add_subdirectory(common_lib)
 add_subdirectory(image_restorer)
-#add_subdirectory(build_procedure)
+add_subdirectory(build_procedure)
 # add_executable(tmp tmp.cpp)
 
 #add_executable(main main.cpp)

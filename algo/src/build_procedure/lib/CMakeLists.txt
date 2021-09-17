@@ -1,0 +1,4 @@
+add_library(build_procedure_lib original_positions.cpp procedures.cpp)
+target_link_libraries(build_procedure_lib common_lib)
+target_include_directories(build_procedure_lib PUBLIC ${PROJECT_SOURCE_DIR}/build_procedure/lib)
+

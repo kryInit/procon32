@@ -101,6 +101,8 @@ namespace DirectionNS {
 
     class Path : public std::vector<Direction> {
     public:
+        using std::vector<Direction>::vector;
+        void join(const Path& other);
         static Path from_string(const std::string& s);
         static std::pair<Path, std::string> from_string_safely(const std::string& s);
         [[nodiscard]] std::string to_string() const;
@@ -168,6 +170,7 @@ namespace DirectionNS {
         else return std::nullopt;
     }
 
+    inline void Path::join(const Path& other) { this->insert(this->end(), other.begin(), other.end()); }
     inline Path Path::from_string(const std::string& s) {
         Path result; result.reserve(s.size());
         for(const auto& c : s) result.push_back(Direction::from_char(c));
