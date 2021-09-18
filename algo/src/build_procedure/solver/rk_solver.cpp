@@ -472,10 +472,9 @@ class StrictSorter {
 
     [[nodiscard]] optional<Path> calc_shortest_path(const Pos& s, const Pos& t, const State& state) const {
         const int dnx = div_num.x, dny = div_num.y;
-        deque<pair<Pos, Path>> que;
+        deque<pair<Pos, Direction>> que;
+        array<array<Direction, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> from{};
         array<array<bool, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> visited{};
-        que.clear();
-        rep(i,dny) rep(j,dnx) visited[i][j] = false;
 
         if (state.board_state[s.y][s.x] != state.ordinary) {
             auto message = Utility::concat("state[s_idx] is ", state.board_state[s.y][s.x]);
@@ -486,31 +485,39 @@ class StrictSorter {
             EXIT_DEBUG(message);
         }
 
-        que.emplace_back(s, Path());
+        bool reached = false;
+        que.emplace_back(s, Direction::U);
         while(!que.empty()) {
-            Path path = que.front().second;
+            const Direction prev_dir = que.front().second;
             const Pos now = que.front().first;
             que.pop_front();
-            if (now == t) return path;
             if (visited[now.y][now.x]) continue;
+            from[now.y][now.x] = prev_dir;
             visited[now.y][now.x] = true;
+            if (now == t) { reached = true; break; }
             for(const auto& dir : Direction::All) {
                 Pos next = now.get_moved_toraly_pos(dir, div_num);
                 if (state.board_state[next.y][next.x] == state.ordinary) {
-                    path.push_back(dir);
-                    que.emplace_back(next, path);
-                    path.pop_back();
+                    que.emplace_back(next, dir);
                 }
             }
         }
-        return nullopt;
+        if (!reached) return nullopt;
+        Path path;
+        Pos now = t;
+        while(now != s) {
+            const Direction dir = from[now.y][now.x];
+            path.push_back(dir);
+            now.move_toraly(dir.get_dir_reversed(), div_num);
+        }
+        reverse(all(path));
+        return path;
     }
     [[nodiscard]] optional<Path> calc_nice_path(const Pos& s, const Pos& t, const State& state) const {
         const int dnx = div_num.x, dny = div_num.y;
-        deque<pair<Pos, Path>> que;
+        deque<pair<Pos, Direction>> que;
+        array<array<Direction, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> from{};
         array<array<bool, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> visited{};
-//        que.clear();
-//        rep(i,dny) rep(j,dnx) visited[i][j] = false;
 
         if (state.board_state[s.y][s.x] != state.ordinary) {
             auto message = Utility::concat("state[s_idx] is ", state.board_state[s.y][s.x]);
@@ -521,14 +528,16 @@ class StrictSorter {
             EXIT_DEBUG(message);
         }
 
-        que.emplace_back(s, Path());
+        bool reached = false;
+        que.emplace_back(s, Direction::U);
         while(!que.empty()) {
-            Path path = que.front().second;
             const Pos now = que.front().first;
+            const Direction prev_dir = que.front().second;
             que.pop_front();
-            if (now == t) return path;
             if (visited[now.y][now.x]) continue;
             visited[now.y][now.x] = true;
+            from[now.y][now.x] = prev_dir;
+            if (now == t) { reached = true; break; }
             for(const auto& dir : Direction::All) {
                 Pos next = now.get_moved_toraly_pos(dir, div_num);
                 if (state.board_state[next.y][next.x] == state.ordinary) {
@@ -554,14 +563,21 @@ class StrictSorter {
                         back = now_to_orig_next_dist > next_to_orig_next_dist;
                     }
 
-                    path.push_back(dir);
-                    if (back) que.emplace_back(next, path);
-                    else que.emplace_front(next, path);
-                    path.pop_back();
+                    if (back) que.emplace_back(next, dir);
+                    else que.emplace_front(next, dir);
                 }
             }
         }
-        return nullopt;
+        if (!reached) return nullopt;
+        Path path;
+        Pos now = t;
+        while(now != s) {
+            const Direction dir = from[now.y][now.x];
+            path.push_back(dir);
+            now.move_toraly(dir.get_dir_reversed(), div_num);
+        }
+        reverse(all(path));
+        return path;
     }
 
     tuple<Path, bool> move_target_to_destination_by_selected_pos(const Pos& target, const Pos& destination, State& state) {
@@ -1269,6 +1285,29 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
     return state.proc;
 }
 
+void check_ans(OriginalPositions initial_orig_pos, const Procedures &procs) {
+    auto& now_orig_pos = initial_orig_pos;
+    for(const auto &proc : procs) {
+        Pos current = proc.selected_pos;
+        Pos tmp = now_orig_pos[current.y][current.x];
+        for(const auto dir : proc.path) {
+            Pos next = current;
+            next.move(dir);
+
+            next.x = (next.x + div_num.x) % div_num.x;
+            next.y = (next.y + div_num.y) % div_num.y;
+
+            now_orig_pos[current.y][current.x] = now_orig_pos[next.y][next.x];
+            current = next;
+        }
+        now_orig_pos[current.y][current.x] = tmp;
+    }
+    rep(i,div_num.y) rep(j,div_num.x) if (Vec2(j,i) != now_orig_pos[i][j]) {
+        EPRINT(i, j, Vec2(j,i), now_orig_pos[i][j]);
+        exit(-1);
+    }
+}
+
 
 Procedures RkSolver::operator()(const OriginalPositions& original_positions, const Settings& settings, int argc, char *argv[]) {
     if (argc <= 2) EXIT_DEBUG("required 3 or more arguments");
@@ -1279,8 +1318,9 @@ Procedures RkSolver::operator()(const OriginalPositions& original_positions, con
     selectable_times = settings.selectable_times;
 
     const State initial_state(original_positions);
+    Procedures ans;
     if (string(argv[2]) == "initial") {
-        return get_initial_procedure(initial_state, settings);
+        ans = get_initial_procedure(initial_state, settings);
     } else if (string(argv[2]) == "complete") {
         State state = initial_state;
         const string initial_procs_path = string(argv[3]);
@@ -1289,9 +1329,11 @@ Procedures RkSolver::operator()(const OriginalPositions& original_positions, con
             state.select(proc.selected_pos);
             state.move_selected_pos(proc.path);
         }
-        return get_complete_procedure(state, settings);
+        ans = get_complete_procedure(state, settings);
     } else {
         EXIT_DEBUG("2nd argument must be initial or complete");
     }
-    UNREACHABLE
+    check_ans(original_positions, ans);
+    PRINT(sizeof(State));
+    return ans;
 }
