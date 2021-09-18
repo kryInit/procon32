@@ -36,7 +36,8 @@ int main(int argc, char *argv[]) {
 
     auto [rotations, original_positions] = input_original_state(original_state_path, settings);
 
-    Procedures procs = KrSolver()(original_positions, settings, argc, argv);
+//    Procedures procs = KrSolver()(original_positions, settings, argc, argv);
+    Procedures procs = RkSolver()(original_positions, settings, argc, argv);
 //    Procedures procs = SimpleSolver()(original_positions, settings);
 
     const string procedure_path = prob_dir + "/procedure.txt";
