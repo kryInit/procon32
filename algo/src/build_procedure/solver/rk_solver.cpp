@@ -2,6 +2,7 @@
 #include <bits/stdc++.h>
 #include <comparable_data.hpp>
 #include <time_manager.hpp>
+#include <weak_vector.hpp>
 #include <utility.hpp>
 #include <macro.hpp>
 #include <omp.h>
@@ -62,8 +63,6 @@ void optimize_procedures(Procedures& procs) {
     procs = tmp_procs;
 }
 
-template<class T> using Board = vector<vector<T>>;
-
 Vec2<int> div_num;
 int swap_cost, select_cost, selectable_times;
 
@@ -72,17 +71,19 @@ struct State {
 
     Pos selected_pos, first_sorted_pos;
     Procedures proc;
-    Board<char> board_state;
-    OriginalPositions orig_pos;
+    array<array<char, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> board_state;
+    array<array<Pos, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> orig_pos;
 
 
     State() = default;
-    State(const OriginalPositions& orig_pos)
+    State(const OriginalPositions& _orig_pos)
         : selected_pos(Pos(-1,-1))
         , first_sorted_pos()
         , proc()
-        , board_state(orig_pos.size(), vector<char>(orig_pos.front().size()))
-        , orig_pos(orig_pos) {}
+        , board_state()
+        , orig_pos() {
+        rep(i,div_num.y) rep(j,div_num.x) orig_pos[i][j] = _orig_pos[i][j];
+    }
 
     void select(const Pos& p) {
         proc.emplace_back(p, Path());
@@ -96,6 +97,17 @@ struct State {
             selected_pos = next;
         }
         proc.back().path.join(path);
+    }
+
+    void revert_move_selected_pos(int prev_path_size) {
+        while((int)proc.back().path.size() != prev_path_size) {
+            Direction dir = proc.back().path.back();
+            const Pos now = selected_pos;
+            const Pos prev = now.get_moved_toraly_pos(dir.get_dir_reversed(), div_num);
+            swap(orig_pos[now.y][now.x], orig_pos[prev.y][prev.x]);
+            selected_pos = prev;
+            proc.back().path.pop_back();
+        }
     }
 
     [[nodiscard]] Pos get_now_pos_by_original_pos(Pos p) const {
@@ -368,7 +380,7 @@ public:
             double now_diff_penalty = 0;
             Path now_addnl_path; now_addnl_path.reserve(depth);
             while(true) {
-                if (now_addnl_path.size() == depth) {
+                if ((int)now_addnl_path.size() == depth) {
                     while(!now_addnl_path.empty() && now_addnl_path.back() == Direction::L) {
                         now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
                         now_addnl_path.pop_back();
@@ -471,8 +483,9 @@ class StrictSorter {
     array<Procedures, 4096> best_procs_for_2x2;
 
     [[nodiscard]] optional<Path> calc_shortest_path(const Pos& s, const Pos& t, const State& state) const {
-        const int dnx = div_num.x, dny = div_num.y;
-        deque<pair<Pos, Direction>> que;
+        if (s == t) return Path();
+        weak_vector<pair<Pos, Direction>, MAX_DIV_NUM> wv1, wv2;
+//        vector<pair<Pos, Direction>> current, next; current.reserve(100), next.reserve(100);
         array<array<Direction, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> from{};
         array<array<bool, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> visited{};
 
@@ -486,22 +499,55 @@ class StrictSorter {
         }
 
         bool reached = false;
-        que.emplace_back(s, Direction::U);
-        while(!que.empty()) {
-            const Direction prev_dir = que.front().second;
-            const Pos now = que.front().first;
-            que.pop_front();
-            if (visited[now.y][now.x]) continue;
-            from[now.y][now.x] = prev_dir;
-            visited[now.y][now.x] = true;
-            if (now == t) { reached = true; break; }
-            for(const auto& dir : Direction::All) {
-                Pos next = now.get_moved_toraly_pos(dir, div_num);
-                if (state.board_state[next.y][next.x] == state.ordinary) {
-                    que.emplace_back(next, dir);
+        int loop_count = 0;
+        wv1.emplace_back(s, Direction::U);
+        while(!wv1.empty() || !wv2.empty()) {
+            loop_count++;
+            auto& current = loop_count%2 ? wv1 : wv2;
+            auto& next = loop_count%2 ? wv2 : wv1;
+            for(const auto& [now, prev_dir] : current) {
+                if (visited[now.y][now.x]) continue;
+                from[now.y][now.x] = prev_dir;
+                visited[now.y][now.x] = true;
+//                if (now == t) { reached = true; break; }
+                for(const auto& dir : Direction::All) {
+                    Pos next_p = now.get_moved_toraly_pos(dir, div_num);
+                    if (state.board_state[next_p.y][next_p.x] == state.ordinary && !visited[next_p.y][next_p.x]) {
+                        if (next_p == t) {
+                            from[next_p.y][next_p.x] = dir;
+                            reached = true;
+                            break;
+                        }
+                        next.emplace_back(next_p, dir);
+                    }
+                }
+                if (reached) break;
+            }
+            if (reached) break;
+            current.clear();
+        }
+/*
+
+        current.emplace_back(s, Direction::U);
+        while(!current.empty()) {
+            for(const auto& [now, prev_dir] : current) {
+                if (visited[now.y][now.x]) continue;
+                from[now.y][now.x] = prev_dir;
+                visited[now.y][now.x] = true;
+                if (now == t) { reached = true; break; }
+                for(const auto& dir : Direction::All) {
+                    Pos next_p = now.get_moved_toraly_pos(dir, div_num);
+                    if (state.board_state[next_p.y][next_p.x] == state.ordinary && !visited[next_p.y][next_p.x]) {
+                        next.emplace_back(next_p, dir);
+                    }
                 }
             }
+            if (reached) break;
+            current.swap(next);
+            next.clear();
         }
+
+*/
         if (!reached) return nullopt;
         Path path;
         Pos now = t;
@@ -513,8 +559,9 @@ class StrictSorter {
         reverse(all(path));
         return path;
     }
+/*
+
     [[nodiscard]] optional<Path> calc_nice_path(const Pos& s, const Pos& t, const State& state) const {
-        const int dnx = div_num.x, dny = div_num.y;
         deque<pair<Pos, Direction>> que;
         array<array<Direction, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> from{};
         array<array<bool, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> visited{};
@@ -580,28 +627,27 @@ class StrictSorter {
         return path;
     }
 
-    tuple<Path, bool> move_target_to_destination_by_selected_pos(const Pos& target, const Pos& destination, State& state) {
+*/
+    bool move_target_to_destination_by_selected_pos(const Pos& target, const Pos& destination, State& state) {
         if (state.board_state[target.y][target.x] != state.ordinary) {
             EXIT_DEBUG("target's state isn't ordinary");
         }
 
         Pos now = target;
-        Path path;
         Path targets_path = calc_shortest_path(target, destination, state).value();
         for(const auto& dir : targets_path) {
             Pos next = now.get_moved_toraly_pos(dir, div_num);
             state.board_state[now.y][now.x] = state.unmovable;
-            optional<Path> optional_additional_path = calc_nice_path(state.selected_pos, next, state);
+            optional<Path> optional_additional_path = calc_shortest_path(state.selected_pos, next, state);
             state.board_state[now.y][now.x] = state.ordinary;
             if (optional_additional_path) {
                 Path& additional_path = optional_additional_path.value();
                 additional_path.push_back(dir.get_dir_reversed());
-
                 state.move_selected_pos(additional_path);
                 now = next;
-            } else return {path, false};
+            } else return false;
         }
-        return {path, true};
+        return true;
     }
 
     void move_to_correct_pos(const Pos& target, State& state) {
@@ -610,9 +656,8 @@ class StrictSorter {
             state.board_state[destination.y][destination.x] = state.sorted;
             return;
         }
-        auto [path, succeeded] = move_target_to_destination_by_selected_pos(target, destination, state);
+        auto succeeded = move_target_to_destination_by_selected_pos(target, destination, state);
         if (succeeded) {
-            state.proc.back().path.join(path);
             state.board_state[destination.y][destination.x] = state.sorted;
         } else EXIT_DEBUG("failed");
     }
@@ -640,17 +685,17 @@ class StrictSorter {
             EXIT_DEBUG("");
         }
 
-        Path tmp_path;
         bool succeeded;
 
-        tie(tmp_path, succeeded) = move_target_to_destination_by_selected_pos(target, destination1, state);
+        succeeded = move_target_to_destination_by_selected_pos(target, destination1, state);
         if (!succeeded) EXIT_DEBUG("");
         state.board_state[destination1.y][destination1.x] = state.unmovable;
 
         Pos now_buddy = state.get_now_pos_by_original_pos(orig_buddy);
-        tie(tmp_path, succeeded) = move_target_to_destination_by_selected_pos(now_buddy, destination2, state);
+        succeeded = move_target_to_destination_by_selected_pos(now_buddy, destination2, state);
         state.board_state[destination2.y][destination2.x] = state.unmovable;
         if (!succeeded) {
+            Path tmp_path;
             if (state.selected_pos != orig_target) EXIT_DEBUG("moving_pos, orig_target: ",state.selected_pos,orig_target);
             if (target_to_buddy_dir.is_vertical() == free_dir.is_vertical()) EXIT_DEBUG("");
             if (target_to_buddy_dir == Direction::U) {
@@ -676,15 +721,14 @@ class StrictSorter {
             return;
         }
 
-        auto opt_path = calc_nice_path(state.selected_pos, destination3, state);
+        auto opt_path = calc_shortest_path(state.selected_pos, destination3, state);
         if (!opt_path) EXIT_DEBUG("");
         state.move_selected_pos(opt_path.value());
 
         state.board_state[destination1.y][destination1.x] = state.ordinary;
         state.board_state[destination2.y][destination2.x] = state.ordinary;
 
-        tmp_path = {target_to_buddy_dir, free_dir};
-        state.move_selected_pos(tmp_path);
+        state.move_selected_pos({target_to_buddy_dir, free_dir});
 
         state.board_state[orig_target.y][orig_target.x] = state.sorted;
         state.board_state[orig_buddy.y][orig_buddy.x] = state.sorted;
@@ -861,6 +905,21 @@ class StrictSorter {
         if (tt.has_buddy) move_to_correct_pos(tt.target, tt.buddy, tt.free_dir, state);
         else move_to_correct_pos(tt.target, state);
     }
+    void revert_transition(const TransitionType& tt, State& state, const int prev_path_size) {
+        state.revert_move_selected_pos(prev_path_size);
+        if (tt.has_buddy) {
+            const Pos target = tt.target;
+            const Pos buddy = tt.buddy;
+            const Pos orig_target = state.orig_pos[target.y][target.x];
+            const Pos orig_buddy = state.orig_pos[buddy.y][buddy.x];
+            state.board_state[orig_target.y][orig_target.x] = state.ordinary;
+            state.board_state[orig_buddy.y][orig_buddy.x] = state.ordinary;
+        } else {
+            Pos target = tt.target;
+            Pos destination = state.orig_pos[target.y][target.x];
+            state.board_state[destination.y][destination.x] = state.ordinary;
+        }
+    }
     void sort_last_2x2(State& state, int max_select_times) {
         if (max_select_times < 1) EXIT_DEBUG("");
         constexpr array<int, 4> offset{16,64,256, 1024};
@@ -950,13 +1009,13 @@ public:
         state.first_sorted_pos = state.orig_pos[first_target.y][first_target.x];
         move_to_correct_pos(first_target, state);
 
+        State best_state, tmp_state;
         while(true) {
             auto transition_types = get_all_possible_transition_types(state);
             if (transition_types.empty()) break;
             double min_cost = 1e20;
-            State best_state;
             for(const auto& transition_type : transition_types) {
-                State tmp_state = state;
+                tmp_state = state;
                 transition(transition_type, tmp_state);
                 double cost = get<0>(evaluate(tmp_state));
                 if (min_cost > cost) {
@@ -964,9 +1023,7 @@ public:
                     best_state = tmp_state;
                 }
             }
-
             state = best_state;
-
         }
 
         sort_last_2x2(state, 3);
@@ -1078,52 +1135,54 @@ public:
             state.orig_pos[p1.y][p1.x] = p2;
         }
 
-        if (state.selected_pos != first_selected_pos) {
-            state.selected_pos = first_selected_pos;
-            state.proc.emplace_back(first_selected_pos, Path());
-        }
+        if (state.selected_pos != first_selected_pos) state.select(first_selected_pos);
         state.first_sorted_pos = exUL.get_moved_toraly_pos(exdp, div_num);
         if (state.orig_pos[state.selected_pos.y][state.selected_pos.x].x == state.first_sorted_pos.x) state.first_sorted_pos.move_toraly(Direction::R, div_num);
         if (state.orig_pos[state.selected_pos.y][state.selected_pos.x].y == state.first_sorted_pos.y) state.first_sorted_pos.move_toraly(Direction::D, div_num);
         if (state.board_state[state.first_sorted_pos.y][state.first_sorted_pos.x] != state.sorted) move_to_correct_pos(rev_now_orig_pos[state.first_sorted_pos.y][state.first_sorted_pos.x], state);
 
-        while(true) {
+        {
+//            State best_state;
+            State best_state, tmp_state;
+            while(true) {
 
-            auto transition_types = get_all_possible_transition_types(state);
-            if (transition_types.empty()) break;
+                auto transition_types = get_all_possible_transition_types(state);
+                if (transition_types.empty()) break;
 
-            // target == destinationのやつがあれば遷移
-            {
-                bool transitioned = false;
-                for(const auto& transition_type : transition_types) {
-                    if (!transition_type.has_buddy) {
-                        const auto& target = transition_type.target;
-                        const auto& destination = state.orig_pos[target.y][target.x];
-                        if (target == destination) {
-                            //                            transition(transition_type, state);
-                            state.board_state[destination.y][destination.x] = state.sorted;
-                            transitioned = true;
-                            break;
+                // target == destinationのやつがあれば遷移
+                {
+                    bool transitioned = false;
+                    for(const auto& transition_type : transition_types) {
+                        if (!transition_type.has_buddy) {
+                            const auto& target = transition_type.target;
+                            const auto& destination = state.orig_pos[target.y][target.x];
+                            if (target == destination) {
+                                //                            transition(transition_type, state);
+                                state.board_state[destination.y][destination.x] = state.sorted;
+                                transitioned = true;
+                                break;
+                            }
                         }
                     }
+                    if (transitioned) continue;
                 }
-                if (transitioned) continue;
-            }
 
-            // costが最も小さい次のstateを探す
-            double min_cost = 1e20;
-            State best_state;
-            for(const auto& transition_type : transition_types) {
-                State tmp_state = state;
-                transition(transition_type, tmp_state);
-                double cost = get<0>(evaluate(tmp_state));
-                if (min_cost > cost) {
-                    min_cost = cost;
-                    best_state = tmp_state;
+                // costが最も小さい次のstateを探す
+                double min_cost = 1e20;
+                for(const auto& transition_type : transition_types) {
+                    tmp_state = state;
+                    tmp_state = state;
+                    transition(transition_type, tmp_state);
+                    double cost = get<0>(evaluate(tmp_state));
+                    if (min_cost > cost) {
+                        min_cost = cost;
+                        best_state = tmp_state;
+                    }
                 }
+                state = best_state;
             }
-            state = best_state;
         }
+
 
         sort_last_2x2(state, 2);
 
@@ -1166,7 +1225,7 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
     {
         //        Pos offset(4,4);
         //        Pos rect_size(16,8);
-        Pos rect_size(6,6);
+        Pos rect_size(8,8);
         vector<vector<int>> v(div_num.y, vector<int>(div_num.x));
         State ini_state = state;
         array<array<State, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> memo{};
@@ -1180,7 +1239,7 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
             //        rep(offset_y, div_num.y) rep(offset_x, div_num.x)
             //        int offset_y = 1, offset_x = 1;
             //        int offset_y = 1, offset_x = 5;
-            {
+        {
             StrictSorter ss;
 
             int offset_y = offset / div_num.x;
@@ -1191,7 +1250,6 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
             bool failed = false;
             rep(i,h) rep(j,w) {
                 if (failed) break;
-                PRINT(i,j);
                 int min_cost = INT_MAX;
                 bool updated = false;
                 State best_state;
@@ -1199,17 +1257,14 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
                 rep(dy, rect_size.y) rep(dx,rect_size.x) {
                     State tmp_tmp_state = tmp_state;
                     Pos sp((p.x+dx)%div_num.x,(p.y+dy)%div_num.y);
-                    PRINT(sp, p, rect_size);
                     ss.sort_partially(sp, p, rect_size, tmp_tmp_state);
                     optimize_procedures(tmp_tmp_state.proc);
 
                     int tmp_cost = get<0>(ss.evaluate(tmp_tmp_state));
-                    PRINT(min_cost, tmp_cost);
                     if (min_cost > tmp_cost && tmp_tmp_state.proc.size() <= 10) {
                         min_cost = tmp_cost;
                         best_state = tmp_tmp_state;
                         updated = true;
-                        PRINT("HOGEHOGE");
                     }
                 }
                 if (updated) tmp_state = best_state;
@@ -1221,9 +1276,9 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
                 v[offset_y][offset_x] = tmp_cost;
                 memo[offset_y][offset_x] = tmp_state;
             }
-            }
+        }
 
-            double min_cost = 1e20;
+        double min_cost = 1e20;
         rep(i,div_num.y) rep(j,div_num.x) {
             if (min_cost > v[i][j]) {
                 min_cost = v[i][j];
@@ -1333,7 +1388,7 @@ Procedures RkSolver::operator()(const OriginalPositions& original_positions, con
     } else {
         EXIT_DEBUG("2nd argument must be initial or complete");
     }
-    check_ans(original_positions, ans);
     PRINT(sizeof(State));
+    check_ans(original_positions, ans);
     return ans;
 }
