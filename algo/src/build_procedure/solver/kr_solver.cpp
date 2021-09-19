@@ -408,7 +408,7 @@ public:
             Path best_addnl_path;
 
             rep(i,threads_num) {
-                if (min_diff_penalty > min_diff_penalties[i] || (min_diff_penalty == min_diff_penalties[i] && best_addnl_paths.size() > best_addnl_paths[i].size())) {
+                if (min_diff_penalty > min_diff_penalties[i] || (min_diff_penalty == min_diff_penalties[i] && best_addnl_path.size() > best_addnl_paths[i].size())) {
                     min_diff_penalty = min_diff_penalties[i];
                     best_addnl_path = best_addnl_paths[i];
                 }
