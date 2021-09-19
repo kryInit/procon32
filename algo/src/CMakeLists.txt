@@ -14,7 +14,7 @@ find_package(OpenMP)
 #set(CMAKE_CUDA_FLAGS_DEBUG "-g -O0 -DDEBUG -Xcompiler=\"-Wall -g -O0 -DDEBUG\"")
 
 set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -fopenmp")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -O3 -DDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 

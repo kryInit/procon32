@@ -14,8 +14,8 @@ public:
     void push_back(const T& val) { data[head] = val; head++; }
     template<class... Args> void emplace_back(const Args&... args) { data[head] = {args...}; head++; }
     void swap_and_erase(size_t idx) { swap(data[idx], data[head-1]); pop_back(); }
-    T get_and_pop_back() { assert(head > 0); return data[--head]; }
-    void pop_back() { assert(head > 0); head--; }
+    T get_and_pop_back() { return data[--head]; }
+    void pop_back() { head--; }
     T back() const { return data[head-1]; }
     T front() const { return data[0]; }
     T* begin() { return data.begin(); }
