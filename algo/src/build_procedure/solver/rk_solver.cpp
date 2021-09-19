@@ -154,6 +154,19 @@ class RoughSorter {
     }
 
 public:
+    optional<Pos> get_max_penalty_pos(const State& state) {
+        optional<Pos> p = nullopt;
+        int max_penalty = 0;
+        rep(i,div_num.y) rep(j,div_num.x) {
+            int tmp_penalty = calc_penalty(Vec2(j,i), state);
+            if (max_penalty < tmp_penalty) {
+                max_penalty = tmp_penalty;
+                p = Pos(j,i);
+            }
+        }
+        return p;
+    }
+
     double parallelized_sort_roughly(State& state, const int time_limit = 5000, const int depth = 9) {
         State original_state = state;
         const int dnx = div_num.x;
@@ -171,7 +184,6 @@ public:
         double best_penalty = now_penalty;
         Path best_path;
 
-        Path now_path;
         TimeManager tm(time_limit);
 
         {
@@ -196,6 +208,7 @@ public:
             initial_addnl_paths = {{{{U,U}}, {{U,R}}, {{U,L}}, {{R,U}}, {{R,R}}, {{R,D}}, {{D,R}}, {{D,D}}, {{D,L}}, {{L,U}}, {{L,D}}, {{L,L}}}};
         }
 
+        Path& now_path = state.proc.back().path;
         while(tm.in_time_limit()) {
             PRINT(loop_count, now_path.size(), now_penalty, best_penalty);
             loop_count++;
@@ -216,15 +229,23 @@ public:
                 Path now_addnl_path = initial_addnl_paths[i];
 
                 now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path[0], tmp_state);
-
                 {
-                    double tmp_now_diff_penalty = now_diff_penalty +  coef;
-                    if ((min_diff_penalty > tmp_now_diff_penalty) || (min_diff_penalty == tmp_now_diff_penalty && best_addnl_path.size() > now_addnl_path.size())) {
+                    double tmp_now_diff_penalty = now_diff_penalty + coef;
+                    if ((min_diff_penalty > tmp_now_diff_penalty) || (min_diff_penalty == tmp_now_diff_penalty && best_addnl_path.size() > 1)) {
                         min_diff_penalty = tmp_now_diff_penalty;
-                        best_addnl_path.push_back(now_addnl_path[0]);
+                        best_addnl_path = {now_addnl_path[0]};
                     }
                 }
+
                 now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path[1], tmp_state);
+
+                {
+                    double tmp_now_diff_penalty = now_diff_penalty + coef * now_addnl_path.size();
+                    if ((min_diff_penalty > tmp_now_diff_penalty) || (min_diff_penalty == tmp_now_diff_penalty && best_addnl_path.size() > now_addnl_path.size())) {
+                        min_diff_penalty = tmp_now_diff_penalty;
+                        best_addnl_path = now_addnl_path;
+                    }
+                }
 
                 while(true) {
                     if ((int)now_addnl_path.size() == depth) {
@@ -269,7 +290,7 @@ public:
             Path best_addnl_path;
 
             rep(i,threads_num) {
-                if (min_diff_penalty > min_diff_penalties[i] || (min_diff_penalty == min_diff_penalties[i] && best_addnl_paths.size() > best_addnl_paths[i].size())) {
+                if (min_diff_penalty > min_diff_penalties[i] || (min_diff_penalty == min_diff_penalties[i] && best_addnl_path.size() > best_addnl_paths[i].size())) {
                     min_diff_penalty = min_diff_penalties[i];
                     best_addnl_path = best_addnl_paths[i];
                 }
@@ -291,10 +312,9 @@ public:
                 // kick
                 if (loop_count > prev_upgrade_time*100) break;
                 else if (loop_count - prev_update_time > 300) {
-                    now_path = best_path;
                     now_penalty = best_penalty;
                     state = original_state;
-                    state.move_selected_pos(now_path);
+                    state.move_selected_pos(best_path);
                     prev_update_time = loop_count;
                 } else {
                     now_penalty -= now_path.size() * coef;
@@ -366,9 +386,9 @@ public:
         double best_penalty = now_penalty;
         Path best_path;
 
-        Path now_path;
         TimeManager tm(time_limit);
 
+        Path& now_path = state.proc.back().path;
         while(tm.in_time_limit()) {
             PRINT(loop_count, now_path.size(), now_penalty, best_penalty);
 
@@ -426,10 +446,9 @@ public:
                 // kick
                 if (loop_count > prev_upgrade_time*100) break;
                 else if (loop_count - prev_update_time > 300) {
-                    now_path = best_path;
                     now_penalty = best_penalty;
                     state = original_state;
-                    state.move_selected_pos(now_path);
+                    state.move_selected_pos(best_path);
                     prev_update_time = loop_count;
                 } else {
                     now_penalty -= now_path.size() * coef;
@@ -474,6 +493,82 @@ public:
             cout << endl;
         }
         cout << endl;
+
+        return best_penalty;
+    }
+    double sort_roughly_greedily(State& state, const int depth = 9) {
+        State original_state = state;
+        const int dnx = div_num.x;
+        const int dny = div_num.y;
+        double coef = 0.;
+
+        double now_penalty = 0;
+        rep(i,dny) rep(j,dnx) if (Pos(j,i) != state.selected_pos) now_penalty += calc_penalty(Pos(j,i), state);
+
+        int loop_count = 0;
+        int prev_update_time = -1;
+        int prev_upgrade_time = -1;
+
+        double best_penalty = now_penalty;
+        Path best_path;
+
+        Path& now_path = state.proc.back().path;
+        while(true) {
+            loop_count++;
+
+            double min_diff_penalty = 1e20;
+            Path best_addnl_path;
+
+            double now_diff_penalty = 0;
+            Path now_addnl_path; now_addnl_path.reserve(depth);
+            while(true) {
+                if ((int)now_addnl_path.size() == depth) {
+                    while(!now_addnl_path.empty() && now_addnl_path.back() == Direction::L) {
+                        now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
+                        now_addnl_path.pop_back();
+                    }
+                    if (now_addnl_path.empty()) break;
+                    now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
+                    now_addnl_path.back().rotate_cw();
+                    while(now_addnl_path.size() >= 2) {
+                        int idx = now_addnl_path.size()-2;
+                        if (Direction(now_addnl_path[idx].get_dir_reversed()) == now_addnl_path.back()) {
+                            if (now_addnl_path.back() == Direction::L) {
+                                now_addnl_path.pop_back();
+                                now_diff_penalty += revert_move_and_calc_diff_penalty(now_addnl_path.back(), state);
+                            }
+                            now_addnl_path.back().rotate_cw();
+                        } else break;
+                    }
+                } else {
+                    if (now_addnl_path.empty() || now_addnl_path.back() != Direction::D) now_addnl_path.push_back(Direction::U);
+                    else now_addnl_path.push_back(Direction::R);
+                }
+
+                now_diff_penalty += move_and_calc_diff_penalty(now_addnl_path.back(), state);
+
+                double tmp_now_diff_penalty = now_diff_penalty + now_addnl_path.size() * coef;
+                if ((min_diff_penalty > tmp_now_diff_penalty) || (min_diff_penalty == tmp_now_diff_penalty && best_addnl_path.size() > now_addnl_path.size())) {
+                    min_diff_penalty = tmp_now_diff_penalty;
+                    best_addnl_path = now_addnl_path;
+                }
+            }
+
+            if (min_diff_penalty < 0) {// if I found good additional path
+                // add path and change
+                state.move_selected_pos(best_addnl_path);
+                now_penalty += min_diff_penalty;
+                prev_update_time = loop_count;
+                if ((best_penalty > now_penalty) || (best_penalty == now_penalty && best_path.size() > now_path.size())) {
+                    best_penalty = now_penalty;
+                    best_path = now_path;
+                    prev_upgrade_time = loop_count;
+                }
+            } else break;
+        }
+
+        state = original_state;
+        state.move_selected_pos(best_path);
 
         return best_penalty;
     }
@@ -1198,17 +1293,75 @@ public:
             state.board_state[p1.y][p1.x] = state.ordinary;
         }
     }
+
+    bool sort_by_roughly_sort(State& state) {
+        RoughSorter rs;
+        while(true) {
+            const auto p = rs.get_max_penalty_pos(state);
+            if (!p) break;
+            if (state.proc.size() >= selectable_times) return false;
+            state.select(p.value());
+            rs.sort_roughly_greedily(state);
+            if (state.proc.back().path.empty()) return false;
+        }
+        optimize_procedures(state.proc);
+        return true;
+    }
 };
 
 
 
 Procedures get_initial_procedure(const State& initial_state, const Settings& settings) {
     State state = initial_state;
-    state.select(Pos(5,5));
+//    state.select(Pos(5,5));
+    state.select(Pos(0,0));
     RoughSorter rs;
     rs.parallelized_sort_roughly(state, 5000, 12);
 
     return state.proc;
+}
+
+pair<double, optional<Procedures>> get_complete_procedure__(const State& initial_state, const Settings& settings, const Vec2<int> rect_size, const Vec2<int> offset) {
+    State state = initial_state;
+
+    TimingDevice td;
+
+    StrictSorter ss;
+
+    const int h = (div_num.y + rect_size.y-1) / rect_size.y, w = (div_num.x + rect_size.x-1) / rect_size.x;
+    bool failed = false;
+    rep(i,h) rep(j,w) {
+        if (failed) break;
+        int min_cost = INT_MAX;
+        bool updated = false;
+        State best_state;
+        Pos p((j*rect_size.x+offset.x)%div_num.x, (i*rect_size.y+offset.y)%div_num.y);
+        rep(dy, rect_size.y) rep(dx,rect_size.x) {
+            State tmp_state = state;
+            Pos sp((p.x+dx)%div_num.x,(p.y+dy)%div_num.y);
+            ss.sort_partially(sp, p, rect_size, tmp_state);
+            optimize_procedures(tmp_state.proc);
+
+            int tmp_cost = get<0>(ss.evaluate(tmp_state));
+            if (min_cost > tmp_cost && tmp_state.proc.size() <= selectable_times) {
+                min_cost = tmp_cost;
+                best_state = tmp_state;
+                updated = true;
+            }
+        }
+        if (updated) state = best_state;
+        else { failed = true; break; }
+    }
+    double cost = get<0>(ss.evaluate(state));
+    if (failed) {
+        int unsorted_count = 0;
+        rep(i,div_num.y) rep(j,div_num.x) if (state.orig_pos[i][j] != Pos(j,i)) unsorted_count++;
+        cost += unsorted_count * 1e10;
+        return {cost, nullopt};
+    }
+    td.print_elapsed();
+
+    return {cost, state.proc};
 }
 
 Procedures get_complete_procedure(const State& initial_state, const Settings& settings) {
@@ -1219,18 +1372,45 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
     state.dump(div_num);
 
     TimingDevice td;
-    StrictSorter ss;
+    RoughSorter rs;
 
+
+/*
+
+    while(true) {
+        const auto p = rs.get_max_penalty_pos(state);
+        if (!p) break;
+        state.select(p.value());
+        rs.sort_roughly_greedily(state);
+    }
+    StrictSorter ss;
+    optimize_procedures(state.proc);
+    PRINT(get<0>(ss.evaluate(state)));
+
+*/
 
     {
         //        Pos offset(4,4);
         //        Pos rect_size(16,8);
-        Pos rect_size(8,8);
+//        Pos rect_size(16,16);
         vector<vector<int>> v(div_num.y, vector<int>(div_num.x));
         State ini_state = state;
         array<array<State, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> memo{};
 
-        rep(i,div_num.x) rep(j,div_num.y) v[i][j] = INT_MAX;
+        rep(i,div_num.y) rep(j,div_num.x) v[i][j] = INT_MAX;
+
+        optional<int> min_rect_size_sum = nullopt;
+        set<Pos> dns;
+        repr(I,4,div_num.x + div_num.y + 1) repr(J,2,div_num.x+1) if (I > J) {
+            Pos rect_size(J, I-J), dn((div_num.x+J-2) / J, (div_num.y+I-J-2)/(I-J));
+            if (rect_size.y < 2 || rect_size.y > div_num.y || rect_size.x > div_num.x) continue;
+            if (max(I-J,J) > min(I-J,J)*2) continue;
+//            if (abs((div_num.y + rect_size.y-1) / rect_size.y - (div_num.x + rect_size.x-1) / rect_size.x) > 2) continue;
+            if (min_rect_size_sum &&  I > min_rect_size_sum.value()+3) continue;
+            if (dns.count(dn)) continue;
+            dns.insert(dn);
+            PRINT(rect_size.x, rect_size.y);
+            td.print_elapsed();
 
 #pragma omp parallel for
         for(int offset = 0; offset < div_num.x*div_num.y; ++offset)
@@ -1269,14 +1449,38 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
                 }
                 if (updated) tmp_state = best_state;
                 else { failed = true; break; }
+
+/*
+
+                {
+                    State tmp_tmp_state = tmp_state;
+                    if (!ss.sort_by_roughly_sort(tmp_tmp_state)) continue;
+                    int tmp_tmp_cost = get<0>(ss.evaluate(tmp_tmp_state));
+                    if (tmp_tmp_state.proc.size() <= 51 && v[offset_y][offset_x] > tmp_tmp_cost) {
+                        v[offset_y][offset_x] = tmp_tmp_cost;
+                        memo[offset_y][offset_x] = tmp_tmp_state;
+                    }
+                }
+
+*/
             }
             int tmp_cost = get<0>(ss.evaluate(tmp_state));
             if (failed) tmp_cost = 99999;
             if (v[offset_y][offset_x] > tmp_cost) {
+                if (tmp_cost == 36110) PRINT(offset_y, offset_x, rect_size);
                 v[offset_y][offset_x] = tmp_cost;
                 memo[offset_y][offset_x] = tmp_state;
             }
         }
+        if (!min_rect_size_sum) {
+            rep(i,div_num.y) rep(j,div_num.x) {
+                if (v[i][j] != 99999) {
+                    min_rect_size_sum = I;
+                    PRINT("FIND");
+                }
+            }
+        }
+    }
 
         double min_cost = 1e20;
         rep(i,div_num.y) rep(j,div_num.x) {
@@ -1297,43 +1501,6 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
 
     }
 
-    /*
-
-        {
-            //        Pos offset(4,4);
-    //        Pos rect_size(16,8);
-            Pos rect_size(6,8);
-            int min_cost = INT_MAX;
-            State best_state;
-            vector<vector<int>> v(div_num.y, vector<int>(div_num.x));
-    //        rep(offset_y, div_num.y) rep(offset_x, div_num.x)
-            int offset_y = 1, offset_x = 5;
-            {
-                State tmp_state = state;
-                const int h = (div_num.y + rect_size.y-1) / rect_size.y, w = (div_num.x + rect_size.x-1) / rect_size.x;
-                rep(i,h) rep(j,w) {
-                    Pos p((j*rect_size.x+offset_x)%div_num.x, (i*rect_size.y+offset_y)%div_num.y);
-                    ss.sort_partially(p, p, rect_size, tmp_state);
-                }
-                optimize_procedures(tmp_state.proc);
-                int tmp_cost = get<0>(ss.evaluate(tmp_state));
-                PRINT(min_cost, tmp_cost);
-                if (min_cost > tmp_cost && tmp_state.proc.size() <= 10) {
-                    min_cost = tmp_cost;
-                    best_state = tmp_state;
-                }
-                v[offset_y][offset_x] = tmp_cost;
-            }
-            state = best_state;
-
-            rep(i,div_num.y) {
-                rep(j,div_num.x) cout << setw(6) << v[i][j];
-                cout << endl;
-            }
-            cout << endl;
-        }
-
-    */
     td.print_elapsed();
 
 
@@ -1377,6 +1544,7 @@ Procedures RkSolver::operator()(const OriginalPositions& original_positions, con
     if (string(argv[2]) == "initial") {
         ans = get_initial_procedure(initial_state, settings);
     } else if (string(argv[2]) == "complete") {
+//        auto procs = get_initial_procedure(initial_state, settings);
         State state = initial_state;
         const string initial_procs_path = string(argv[3]);
         Procedures procs = input_procedure(initial_procs_path);
@@ -1384,11 +1552,15 @@ Procedures RkSolver::operator()(const OriginalPositions& original_positions, con
             state.select(proc.selected_pos);
             state.move_selected_pos(proc.path);
         }
+
+        const Vec2<int> rect_size(atoi(argv[4]), atoi(argv[5]));
+        const Vec2<int> offset(atoi(argv[6]), atoi(argv[7]));
+
+
         ans = get_complete_procedure(state, settings);
+        check_ans(original_positions, ans);
     } else {
         EXIT_DEBUG("2nd argument must be initial or complete");
     }
-    PRINT(sizeof(State));
-    check_ans(original_positions, ans);
     return ans;
 }
