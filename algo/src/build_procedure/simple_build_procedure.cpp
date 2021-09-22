@@ -22,7 +22,7 @@ void dump_openmp_info() {
 }
 
 int main(int argc, char *argv[]) {
-    dump_openmp_info();
+//    dump_openmp_info();
 
     TimingDevice td;
 
@@ -31,8 +31,8 @@ int main(int argc, char *argv[]) {
     const string original_state_path = prob_dir + "/original_state.txt";
 
     Settings settings(settings_path);
-    settings.dump();
-    td.print_elapsed();
+//    settings.dump();
+//    td.print_elapsed();
 
     auto [rotations, original_positions] = input_original_state(original_state_path, settings);
 
@@ -40,9 +40,9 @@ int main(int argc, char *argv[]) {
     Procedures procs = RkSolver()(original_positions, settings, argc, argv);
 //    Procedures procs = SimpleSolver()(original_positions, settings, argc, argv);
 
-    const string procedure_path = prob_dir + "/procedure.txt";
-    ofstream ofs(procedure_path);
-    ofs << rotations << endl << procs << endl;
-    cout << rotations << endl << procs << endl;
-    td.print_elapsed();
+//    const string procedure_path = prob_dir + "/procedure.txt";
+//    ofstream ofs(procedure_path);
+//    ofs << rotations << endl << procs << endl;
+//    cout << rotations << endl << procs << endl;
+//    td.print_elapsed();
 }
