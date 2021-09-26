@@ -40,9 +40,9 @@ int main(int argc, char *argv[]) {
     Procedures procs = RkSolver()(original_positions, settings, argc, argv);
 //    Procedures procs = SimpleSolver()(original_positions, settings, argc, argv);
 
-//    const string procedure_path = prob_dir + "/procedure.txt";
-//    ofstream ofs(procedure_path);
-//    ofs << rotations << endl << procs << endl;
-//    cout << rotations << endl << procs << endl;
-//    td.print_elapsed();
+    const string procedure_path = prob_dir + "/procedure.txt";
+    ofstream ofs(procedure_path);
+    ofs << rotations << endl << procs << endl;
+    cout << rotations << endl << procs << endl;
+    td.print_elapsed();
 }

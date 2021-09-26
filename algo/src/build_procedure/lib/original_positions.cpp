@@ -7,6 +7,10 @@ std::tuple<std::string, OriginalPositions> input_original_state(const std::strin
     std::string rotations;
     OriginalPositions original_positions(div_num.y, std::vector<Pos>(div_num.x));
     std::ifstream ifs(path);
+    if (!ifs) {
+        std::cerr << "[input original state] load failed" << std::endl;
+        exit(-1);
+    }
     ifs >> rotations;
     rep(i, div_num.y) rep(j, div_num.x) {
         std::string s;

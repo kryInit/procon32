@@ -16,7 +16,7 @@ Procedures get_initial_procedure(const State& initial_state, const Settings& set
     State state = initial_state;
 //    state.select(Pos(5,5));
     state.select(Pos(0,0));
-    RoughSorter::parallelized_sort_roughly(state, 5000, 12);
+    RoughSorter::parallelized_sort_roughly(state, 5000, 5000, 12);
     optimize_procedures(state.proc);
 
     return state.proc;
@@ -77,7 +77,6 @@ void simulate(const State& initial_state, const Settings& settings) {
     td.print_elapsed();
 }
 
-/*
 
 Procedures get_complete_procedure(const State& initial_state, const Settings& settings) {
     State state = initial_state;
@@ -190,7 +189,6 @@ Procedures get_complete_procedure(const State& initial_state, const Settings& se
     return state.proc;
 }
 
-*/
 
 void check_ans(OriginalPositions initial_orig_pos, const Procedures &procs) {
     auto& now_orig_pos = initial_orig_pos;
@@ -240,10 +238,11 @@ Procedures RkSolver::operator()(const OriginalPositions& original_positions, con
             state.move_selected_pos(proc.path);
         }
 
-//        ans = get_complete_procedure(state, settings);
+        ans = get_complete_procedure(state, settings);
+        return ans;
 
 //        simulate(state, settings);
-//        exit(-1);
+        exit(-1);
 
         const Vec2<int> rect_size(atoi(argv[4]), atoi(argv[5]));
         const Vec2<int> offset(atoi(argv[6]), atoi(argv[7]));

@@ -7,6 +7,11 @@ SingleProcedure::SingleProcedure(Pos selected_pos, Path path) : selected_pos(sel
 
 Procedures input_procedure(const string& path) {
     ifstream ifs(path);
+    if (!ifs) {
+        cerr << "[input procedure] load failed" << endl;
+        exit(-1);
+    }
+
     {
         string rotations;
         ifs >> rotations;

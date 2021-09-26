@@ -453,7 +453,7 @@ void revert_transition(const TransitionType& tt, State& state, const int prev_pa
         state.board_state[destination.y][destination.x] = State::ordinary;
     }
 }
-void sort_last_2x2(State& state, int max_select_times) {
+void sort_last_2x2(State& state, int max_select_times, bool minimize_cost = false) {
     if (max_select_times < 1) EXIT_DEBUG("");
     constexpr array<int, 4> offset{16,64,256, 1024};
     Pos p;
@@ -489,9 +489,18 @@ void sort_last_2x2(State& state, int max_select_times) {
             dir.rotate_cw();
         }
     }
-
-    int idx = min(3, max_select_times) + 4*selected_idx;
+    int idx = 4*selected_idx;
     rep(i,4) idx += order[i]*offset[i];
+    if (minimize_cost) {
+        idx += min(3, max_select_times);
+    } else {
+        repr(i,1,min(3,max_select_times)+1) if (!StrictSorter::best_procs_for_2x2[idx + i].empty()) {
+            idx += i;
+            break;
+        }
+    }
+
+
 
     auto& procs = StrictSorter::best_procs_for_2x2[idx];
     if (procs.empty()) EXIT_DEBUG("");
@@ -555,7 +564,7 @@ void StrictSorter::sort_start2finish(const Pos& first_selected_pos, const Pos& f
         state = best_state;
     }
 
-    sort_last_2x2(state, 3);
+    sort_last_2x2(state, max(2, selectable_times - (int)state.proc.size()), true);
 }
 void StrictSorter::sort_partially(const Pos& first_selected_pos, const Pos& UL, const Pos& dp, State& state) {
 
@@ -710,7 +719,6 @@ void StrictSorter::sort_partially(const Pos& first_selected_pos, const Pos& UL, 
             state = best_state;
         }
     }
-
 
     sort_last_2x2(state, 2);
 

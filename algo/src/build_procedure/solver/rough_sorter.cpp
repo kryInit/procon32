@@ -26,6 +26,12 @@ double revert_move_and_calc_diff_penalty(const Direction& dir, State& state) {
     return move_and_calc_diff_penalty(dir.get_dir_reversed(), state);
 }
 
+int RoughSorter::calc_penalty_sum(const State& state) {
+    int penalty_sum = 0;
+    rep(i,div_num.y) rep(j,div_num.x) penalty_sum += calc_penalty(Pos(j,i), state);
+    return penalty_sum;
+}
+
 optional<Pos> RoughSorter::get_max_penalty_pos(const State& state) {
     optional<Pos> p = nullopt;
     int max_penalty = 0;
@@ -39,7 +45,7 @@ optional<Pos> RoughSorter::get_max_penalty_pos(const State& state) {
     return p;
 }
 
-double RoughSorter::parallelized_sort_roughly(State& state, const int time_limit, const int depth) {
+double RoughSorter::parallelized_sort_roughly(State& state, const int loose_time_limit, const int strict_time_limit, const int depth) {
     State original_state = state;
     const int dnx = div_num.x;
     const int dny = div_num.y;
@@ -54,9 +60,8 @@ double RoughSorter::parallelized_sort_roughly(State& state, const int time_limit
     int prev_upgrade_time = -1;
 
     double best_penalty = now_penalty;
-    Path best_path;
 
-    TimeManager tm(time_limit);
+    TimeManager tm(strict_time_limit);
 /*
 
     {
@@ -74,25 +79,26 @@ double RoughSorter::parallelized_sort_roughly(State& state, const int time_limit
 
 */
 
-    constexpr int threads_num = 12;
-    array<double, threads_num> min_diff_penalties{};
-    array<Path, threads_num> best_addnl_paths{}, initial_addnl_paths{};
+    constexpr int ini_path_num = 12;
+    array<double, ini_path_num> min_diff_penalties{};
+    array<Path, ini_path_num> best_addnl_paths{}, initial_addnl_paths{};
     {
         constexpr Direction U = Direction::U, R = Direction::R, D = Direction::D, L = Direction::L;
         initial_addnl_paths = {{{{U,U}}, {{U,R}}, {{U,L}}, {{R,U}}, {{R,R}}, {{R,D}}, {{D,R}}, {{D,D}}, {{D,L}}, {{L,U}}, {{L,D}}, {{L,L}}}};
     }
 
     Path& now_path = state.proc.back().path;
+    Path best_path = now_path;
     while(tm.in_time_limit()) {
-//        PRINT(loop_count, now_path.size(), now_penalty, best_penalty);
+        PRINT(loop_count, now_path.size(), now_penalty, best_penalty);
         loop_count++;
 
         // serach additional path
 
-        rep(i,threads_num) min_diff_penalties[i] = 0, best_addnl_paths[i] = Path();
+        rep(i,ini_path_num) min_diff_penalties[i] = 0, best_addnl_paths[i] = Path();
 
-#pragma omp parallel for num_threads(threads_num)
-        for(int i=0; i<threads_num; ++i) {
+#pragma omp parallel for num_threads(12)
+        for(int i=0; i<ini_path_num; ++i) {
             //            rep(i,threads_num) {
             State tmp_state = state;
 
@@ -163,7 +169,7 @@ double RoughSorter::parallelized_sort_roughly(State& state, const int time_limit
         double min_diff_penalty = 1e20;
         Path best_addnl_path;
 
-        rep(i,threads_num) {
+        rep(i,ini_path_num) {
             if (min_diff_penalty > min_diff_penalties[i] || (min_diff_penalty == min_diff_penalties[i] && best_addnl_path.size() > best_addnl_paths[i].size())) {
                 min_diff_penalty = min_diff_penalties[i];
                 best_addnl_path = best_addnl_paths[i];
@@ -184,7 +190,7 @@ double RoughSorter::parallelized_sort_roughly(State& state, const int time_limit
             }
         } else if (!now_path.empty()) { // if I couldn't find additional path
             // kick
-            if (loop_count > prev_upgrade_time*100) break;
+            if ((int)tm.get_ms() > loose_time_limit) break;
             else if (loop_count - prev_update_time > 300) {
                 now_penalty = best_penalty;
                 state = original_state;
@@ -203,6 +209,7 @@ double RoughSorter::parallelized_sort_roughly(State& state, const int time_limit
     }
 
     state = original_state;
+    state.revert_move_selected_pos(0);
     state.move_selected_pos(best_path);
 
 /*
@@ -249,7 +256,7 @@ double RoughSorter::parallelized_sort_roughly(State& state, const int time_limit
 */
     return best_penalty;
 }
-double RoughSorter::sort_roughly(State& state, const int time_limit, const int depth) {
+double sort_roughly(State& state, const int loose_time_limit, const int strict_time_limit, const int depth) {
     State original_state = state;
     const int dnx = div_num.x;
     const int dny = div_num.y;
@@ -263,11 +270,11 @@ double RoughSorter::sort_roughly(State& state, const int time_limit, const int d
     int prev_upgrade_time = -1;
 
     double best_penalty = now_penalty;
-    Path best_path;
 
-    TimeManager tm(time_limit);
+    TimeManager tm(strict_time_limit);
 
     Path& now_path = state.proc.back().path;
+    Path best_path = now_path;
     while(tm.in_time_limit()) {
         PRINT(loop_count, now_path.size(), now_penalty, best_penalty);
 
@@ -323,7 +330,7 @@ double RoughSorter::sort_roughly(State& state, const int time_limit, const int d
             }
         } else if (!now_path.empty()) { // if I couldn't find additional path
             // kick
-            if (loop_count > prev_upgrade_time*100) break;
+            if ((int)tm.get_ms() > loose_time_limit) break;
             else if (loop_count - prev_update_time > 300) {
                 now_penalty = best_penalty;
                 state = original_state;
@@ -342,6 +349,7 @@ double RoughSorter::sort_roughly(State& state, const int time_limit, const int d
     }
 
     state = original_state;
+    state.revert_move_selected_pos(0);
     state.move_selected_pos(best_path);
 
 
@@ -375,6 +383,7 @@ double RoughSorter::sort_roughly(State& state, const int time_limit, const int d
 
     return best_penalty;
 }
+
 double RoughSorter::sort_roughly_greedily(State& state, const int depth) {
     State original_state = state;
     const int dnx = div_num.x;

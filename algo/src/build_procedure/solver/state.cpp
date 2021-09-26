@@ -20,8 +20,10 @@ State::State(const OriginalPositions& _orig_pos)
 }
 
 void State::select(const Pos& p) {
-    proc.emplace_back(p, Path());
-    selected_pos = p;
+    if (selected_pos != p) {
+        proc.emplace_back(p, Path());
+        selected_pos = p;
+    }
 }
 
 void State::move_selected_pos(const Path& path) {
