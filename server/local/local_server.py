@@ -83,7 +83,7 @@ class InitialProcsManager:
 
     @classmethod
     def get_file_name_by_id(cls, id) -> (bool, str):
-        if cls.initial_procs[id][0] == id:
+        if len(cls.initial_procs) > id and cls.initial_procs[id][0] == id:
             return True, cls.initial_procs[id][1]
         else:
             for proc in cls.initial_procs:
@@ -151,7 +151,7 @@ def input_option_and_show_procs():
     opt = input().split(',')
     opt.extend(['', ''])
     line_limit = int(opt[0]) if is_num(opt[0]) else 10
-    sort_by_cost = int(opt[1]) if is_num(opt[1]) else 1
+    sort_by_cost = int(opt[1]) if is_num(opt[1]) else 0
     sort_by_cost = sort_by_cost == 1
     InitialProcsManager.show(line_limit, sort_by_cost)
 
@@ -306,6 +306,17 @@ def complete_procedure_and_send_to_server(parallel_deg, promptly, source, search
     searched |= set(search_log)
 
 
+def complete_procedure_by_rough_sorter_and_send_to_server(source):
+    process = subprocess.run(
+        f'{SOLVERS_DIR}/build_procedure {prob_dir} complete cout both {source}',
+        stdout=subprocess.PIPE,
+        shell=True
+    )
+    best_procs = (b'\n'.join(process.stdout.splitlines()[1:])).decode("utf-8")
+    result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
+    print(f"status_code, text: {result.status_code}, {result.text}")
+
+
 def build_initial_procs():
     tmp_procs_file_path = prob_dir + "/tmp_procs.txt"
 
@@ -440,14 +451,10 @@ def complete_initial_procs():
             else:
                 source = "new"
 
-            # rect_size:
-            #     p(pruning)ならrect_sizeを適当に枝刈りして全探索
-            #     a(all)ならrect_sizeの足し算が小さい順に全探索
-            #     数値指定ならrect_sizeを固定して全探索
             print("search type, promptly, parallel_deg")
             opt = input().split(',')
             opt.extend(['', '', ''])
-            if opt[0] != "a" and opt[0] != "p":
+            if opt[0] != "a" and opt[0] != "p" and opt[0] != "r":
                 if len(opt[0].split()) >= 2 and is_num(opt[0].split()[0]) and is_num(opt[0].split()[1]):
                     rect_size = (int(opt[0].split()[0]), int(opt[0].split()[1]))
                     if rect_size[0] < 2 or rect_size[0] >= dnx or rect_size[1] < 2 or rect_size[1] >= dny:
@@ -457,7 +464,7 @@ def complete_initial_procs():
                 elif opt[0] == '':
                     search_type = "p"
                 else:
-                    print("rect_size must be 'a(all)' or 'p(pruning)' or (x,y)")
+                    print("search type must be 'a(all)' or 'p(pruning)' or r(rough) or (x,y)")
                     print(f"your input: {opt[0]}")
                     continue
             else:
@@ -465,7 +472,10 @@ def complete_initial_procs():
             promptly = False if opt[1] == '' or opt[1] == '0' else True
             parallel_deg = int(opt[2]) if is_num(opt[2]) else 10
 
-            complete_procedure_and_send_to_server(parallel_deg, promptly, source, search_type, searched, div_num)
+            if search_type == "r":
+                complete_procedure_by_rough_sorter_and_send_to_server(source)
+            else:
+                complete_procedure_and_send_to_server(parallel_deg, promptly, source, search_type, searched, div_num)
         elif mode == "3":
             pass
         elif mode == "4":

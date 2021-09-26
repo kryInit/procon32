@@ -123,8 +123,11 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        if (argc == 5) {
+        if (argc == 6) {
             StrictSorter::sort_by_roughly_sort(state);
+            optimize_procedures(state.proc);
+            if ((int)state.proc.size() > selectable_times) return -1;
+            ans = state.proc;
         } else if (Pos pos1(atoi(argv[6]), atoi(argv[7])), pos2(atoi(argv[8]), atoi(argv[9])); pos1.x == 16 && pos1.y == 16) {
             // (const Pos& first_selected_pos, const Pos& first_target, State& state)
             int min_cost = INT_MAX;
@@ -137,6 +140,7 @@ int main(int argc, char *argv[]) {
                 if (p.x != q.x && p.y != q.y) {
                     State tmp_state = state;
                     StrictSorter::sort_start2finish(first_selected_pos, first_target, tmp_state);
+                    optimize_procedures(tmp_state.proc);
                     int cost = StrictSorter::calc_cost(tmp_state);
                     if ((int)tmp_state.proc.size() <= selectable_times && min_cost > cost) {
                         min_cost = cost;
