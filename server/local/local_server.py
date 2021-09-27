@@ -12,7 +12,8 @@ import sys
 import os
 
 
-SERVER_URL = "http://192.168.1.14:3000"
+# SERVER_URL = "http://192.168.1.14:3000"
+SERVER_URL = "http://10.55.21.164:3000"
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../../")
 DATA_DIR = PROJECT_TOP_DIR + "/.data"
@@ -97,6 +98,12 @@ def get_status():
     result = requests.get(SERVER_URL + "/status")
     print(f"[{inspect.currentframe().f_code.co_name}] status_code, text: {result.status_code}, {result.text}")
     return result.text.split()[0], result.text.split()[1:]
+
+
+def get_original_state():
+    result = requests.get(SERVER_URL + "/original_state")
+    with open(prob_dir + "/original_state.txt", mode='w') as f:
+        f.write(result.text)
 
 
 def wait_until_match_start() -> str:
@@ -477,22 +484,20 @@ def complete_initial_procs():
             else:
                 complete_procedure_and_send_to_server(parallel_deg, promptly, source, search_type, searched, div_num)
         elif mode == "3":
-            pass
+            input_option_and_show_procs()
         elif mode == "4":
             pass
 
 
 if __name__ == "__main__":
-    # InitialProcsManager.init("/Users/rk/Projects/procon32/.data/3e91f3becb3070ce6244b6075f0c398b1f381be229222ef663160e6f7172bb1b")
-    # build_initial_procs("/Users/rk/Projects/procon32/.data/3e91f3becb3070ce6244b6075f0c398b1f381be229222ef663160e6f7172bb1b")
-    # exit(-1)
-    print(sys.argv)
     status = wait_until_match_start()
     prob_dir = get_prob_and_processing_for_solver()
     if status == "restoring" and sys.argv[1] == "primary":
         restore_image()
 
     wait_until_procedure_building_start()
+
+    get_original_state()
 
     InitialProcsManager.init()
 

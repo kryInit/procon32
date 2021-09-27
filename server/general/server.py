@@ -39,7 +39,7 @@ class Util:
     def convert_restore2procs(cls, answer):
         with open(Const.DATA_DIR + "/original_state.txt", mode='w') as f:
             f.write(answer)
-        result = subprocess.run(f"{Const.SOLVERS_DIR}/build_procedure {Const.DATA_DIR} simply cout", stdout=subprocess.PIPE, shell=True)
+        result = subprocess.run(f"{Const.SOLVERS_DIR}/build_procedure {Const.DATA_DIR} simply cout procedure", stdout=subprocess.PIPE, shell=True)
         return result.stdout.decode('utf-8').rstrip('\r\n')
 
     @classmethod
@@ -452,6 +452,17 @@ def get_status():
         return f"waiting {GameManager.get_waiting_time()}", 200
     else:
         return GameManager.status, 200
+
+
+@app.route('/original_state', methods=['GET'])
+def get_original_state():
+    is_valid_status_now, msg = GameManager.now_status_is('building')
+    if not is_valid_status_now:
+        return msg, 400
+
+    with open(Const.DATA_DIR + "/original_state.txt") as f:
+        result = f.read()
+    return result, 200
 
 
 @app.route('/answered_times', methods=['GET'])
