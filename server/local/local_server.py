@@ -1,4 +1,21 @@
-from threading import Thread
+# 1: initial, 2: complete, 3:submit,
+
+# initial
+# 1: new, 2: continue, 3: show-procs, 4: show-log
+# a: auto, r: redo, c: change mode, enter: reload
+#  >>>
+# depth, loose_time_limit, strict_time_limit, first_selected_pos
+
+# complete
+# 1: new, 2: continue, 3: show-procs, 4: show-log
+# a: auto, r: redo, c: change mode, enter: reload
+#  >>>
+# search_type, promptly, parallel_deg
+
+
+# ctrl+cで一つ前の改装の選択肢に戻るとか
+# 現在の状態(回答送信数, 前回回答時のコスト, 現在の最小コスト,
+
 import subprocess
 import requests
 import zipfile
@@ -21,13 +38,24 @@ SOLVERS_DIR = PROJECT_TOP_DIR + "/algo/bin"
 DEFAULT_WAIT_TIME = 1
 
 
-def is_num(x):
+def castable(data_type, data):
     try:
-        int(x)
-    except ValueError:
+        data_type(data)
+    except (ValueError, TypeError):
         return False
-    else:
-        return True
+    return True
+
+
+def all_castable(data_type, data):
+    try:
+        map(data_type, data)
+    except (ValueError, TypeError):
+        return False
+    return True
+
+
+def tautology(x):
+    return True
 
 
 def calc_penalty_and_cost(procs_path) -> (int, int):
@@ -70,12 +98,12 @@ class InitialProcsManager:
         cls.update_initial_procs()
 
     @classmethod
-    def show(cls, limit=10, sort_by_cost=True):
+    def show(cls, limit=10, sort_by_penalty=False):
         tmp = cls.initial_procs.copy()
-        if sort_by_cost:
-            tmp.sort(key=lambda x: x[3])
-        else:
+        if sort_by_penalty:
             tmp.sort(key=lambda x: x[2])
+        else:
+            tmp.sort(key=lambda x: x[3])
 
         print("{:>3}, {:>8}, {:>8}, {:>8}".format("id", "hash(5)", "penalty", "cost"))
         for i in range(min(len(tmp), limit)):
@@ -83,14 +111,34 @@ class InitialProcsManager:
             print("{:>3}, {:>8}, {:>8}, {:>8}".format(procs[0], procs[1][:5], procs[2], procs[3]))
 
     @classmethod
-    def get_file_name_by_id(cls, id) -> (bool, str):
-        if len(cls.initial_procs) > id and cls.initial_procs[id][0] == id:
-            return True, cls.initial_procs[id][1]
+    def get_file_name_by_id(cls, proc_id) -> (bool, str):
+        if len(cls.initial_procs) > proc_id and cls.initial_procs[proc_id][0] == proc_id:
+            return True, cls.initial_procs[proc_id][1]
         else:
             for proc in cls.initial_procs:
-                if proc[0] == id:
+                if proc[0] == proc_id:
                     return True, proc[1]
-        return False, f"id is not found: {id}"
+        return False, f"id is not found: {proc_id}"
+
+    @classmethod
+    def input_option_and_show(cls):
+        opt = input("line limit, sort_by_cost\n >>> ").split(',')
+        opt.extend(['', ''])
+        line_limit = int(opt[0]) if castable(int, opt[0]) else 10
+        sort_by_penalty = int(opt[1]) if castable(int, opt[1]) else 0
+        sort_by_penalty = sort_by_penalty == 1
+        InitialProcsManager.show(line_limit, sort_by_penalty)
+
+    @classmethod
+    def input_id_and_get_file_path(cls) -> (bool, str):
+        proc_id = input("id\n >>> ")
+        if not castable(int, proc_id):
+            return False, f"this id is not integer: {proc_id}"
+        proc_id = int(proc_id)
+        succeeded, s = InitialProcsManager.get_file_name_by_id(proc_id)
+        if not succeeded:
+            return False, s
+        return True, f"{prob_dir}/ini_procs/{s}"
 
 
 def get_status():
@@ -152,346 +200,397 @@ def restore_image():
         sys.exit(-1)
 
 
-def input_option_and_show_procs():
-    print("line limit, sort_by_cost")
-    print(" >>> ", end="")
-    opt = input().split(',')
-    opt.extend(['', ''])
-    line_limit = int(opt[0]) if is_num(opt[0]) else 10
-    sort_by_cost = int(opt[1]) if is_num(opt[1]) else 0
-    sort_by_cost = sort_by_cost == 1
-    InitialProcsManager.show(line_limit, sort_by_cost)
+def get_div_num() -> (int, int):
+    with open(prob_dir + "/prob.txt", mode='r') as f:
+        settings = f.read().split()
+    return int(settings[0]), int(settings[1])
 
 
-def input_id_and_return_file_name():
-    print("\n id")
-    print(" >>> ")
-    id = input()
-    if not is_num(id):
-        print("this id is not integer: ", id)
-        return None
-    id = int(id)
-    succeeded, s = InitialProcsManager.get_file_name_by_id(id)
-    if not succeeded:
-        print(s)
-        return None
-    return s
+class InitialProcsBuilder:
+    mode_types = ['1', '2', '3', 'a', 'r', 'c', '']
 
+    tmp_procs_file_path = ""
+    labels = ["depth", "loose_time_limit", "strict_time_limit", "first_select_pos"]
+    casters = [int, int, int, lambda x: x if x == "random" else tuple(map(int, tuple(x.split())))]
+    checkers = [lambda x: x >= 4, lambda x: x > 0, lambda x: x > 0, lambda x: x == "random" or (len(x) == 2 and 0 <= x[0] < dnx and 0 <= x[1] < dny)]
+    default_values = ["14", "5000", "120000", "random"]
+    searched = set()
 
-def exec_initial_procedure_builder_and_send_to_server(cmd, tmp_procs_file_path):
-    try:
-        result = subprocess.run(cmd, shell=True)
-    except KeyboardInterrupt:
-        print("keyboard interrupt")
-        return
-    if result.returncode != 0:
-        print("solver failed")
-        return
-    with open(tmp_procs_file_path, mode='r') as f:
-        procs = f.read()
+    @classmethod
+    def init(cls):
+        cls.tmp_procs_file_path = prob_dir + "/tmp_procs.txt"
 
-    result = requests.post(SERVER_URL + "/answer/initial_procedure", data=procs)
-    print(f"status_code, text: {result.status_code}, {result.text}")
+    @classmethod
+    def get_params_hash(cls, source, params):
+        return ' '.join(map(str, [source, params[0], params[3][0], params[3][1]]))
 
+    @classmethod
+    def extract_params(cls, source, s):
+        s = s.split(',')
+        s.extend(cls.default_values[len(s):])
 
-def get_options(source, search_type, searched, div_num):
-    if search_type == "a":
-        options = [
-            (x,y,X,Y) for x in range(2,div_num[0]+1) for y in range(2,div_num[1]+1) for X in range(div_num[0]) for Y in range(div_num[1])
-            if not f"{source} {' '.join(map(str, (x,y,X,Y)))}" in searched
-        ]
-        options.sort(key=lambda x: x[0]+x[1])
-    elif search_type == "p":
-        rect_sizes = [
-            (x,y) for x in range(2,div_num[0]+1) for y in range(2,div_num[1]+1)
-            if not max(x,y) > min(x,y)*2
-        ]
-        rect_sizes.sort(key=lambda x: x[0]+x[1])
-        pruned_rect_sizes = []
-        dns = set()
-        for x,y in rect_sizes:
-            dn = (int((div_num[0] + x-2) / x), int((div_num[1] + y-2) / y))
-            if dn not in dns:
-                pruned_rect_sizes.append((x,y))
-                dns.add(dn)
-        options = [
-            (x,y,X,Y) for (x,y) in pruned_rect_sizes for X in range(div_num[0]) for Y in range(div_num[1])
-            if f"{source} {' '.join(map(str, (x,y,X,Y)))}" not in searched
-        ]
-        options.sort(key=lambda x: x[0]+x[1])
-    else:
-        rect_size = search_type
-        options = [
-            (rect_size[0],rect_size[1],X,Y) for X in range(div_num[0]) for Y in range(div_num[1])
-            if f"{source} {' '.join(map(str, (rect_size[0],rect_size[1],X,Y)))}" not in searched
-        ]
-    return search_type == "p", options
+        s = [cls.default_values[i] if s[i] == '' else s[i] for i in range(len(cls.labels))]
 
-
-def exec_search(parallel_deg, promptly, source, pruning, options):
-    found = False
-    best_procs = ""
-    best_cost = 1e10
-    processes = []
-    search_log = []
-    min_rect_size_sum = 1e10
-
-    try:
-        for opt in options:
-            if pruning and opt[0] + opt[1] > min_rect_size_sum+3:
-                continue
-            str_opt = ' '.join(map(str, opt))
-            new_proc = subprocess.Popen(
-                f'{SOLVERS_DIR}/build_procedure {prob_dir} complete cout both {source} {str_opt}',
-                stdout=subprocess.PIPE,
-                shell=True
-            )
-            if len(processes) < parallel_deg:
-                processes.append((f"{source} {str_opt}", new_proc))
+        for i in range(len(cls.labels)):
+            if not castable(cls.casters[i], s[i]):
+                return False, f"invalid {cls.labels[i]}: {s[i]}"
             else:
-                wrote = False
-                while True:
-                    for k in range(parallel_deg):
-                        if processes[k][1].poll() is not None:
-                            if processes[k][1].returncode == 0:
-                                cost = int(processes[k][1].stdout.readline())
-                                if best_cost > cost:
-                                    rect_size = int(processes[k][0].split()[1]) + int(processes[k][0].split()[2])
-                                    min_rect_size_sum = min(min_rect_size_sum, rect_size)
-                                    best_cost = cost
-                                    if promptly:
-                                        best_procs = processes[k][1].stdout.read().decode("utf-8")
-                                        result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
-                                        print(f"status_code, text: {result.status_code}, {result.text}")
-                                    else:
-                                        found = True
-                                        best_procs = processes[k][1].stdout.read()
-                            search_log.append(processes[k][0])
-                            processes[k] = (f"{source} {str_opt}", new_proc)
-                            wrote = True
-                            break
-                    if wrote:
-                        break
-                    time.sleep(1/1000)
+                s[i] = cls.casters[i](s[i])
 
-        for proc in processes:
-            proc[1].wait()
-            if proc[1].returncode == 0:
-                cost = int(proc[1].stdout.readline())
-                if best_cost > cost:
-                    best_cost = cost
-                    if promptly:
-                        best_procs = proc[1].stdout.read().decode("utf-8")
-                        result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
-                        print(f"status_code, text: {result.status_code}, {result.text}")
+            if not cls.checkers[i](s[i]):
+                return False, f"invalid {cls.labels[i]}: {s[i]}"
+
+        if s[3] == "random":
+            candidate = list()
+            for y in range(dny):
+                for x in range(dnx):
+                    s[3] = (x, y)
+                    params_hash = cls.get_params_hash(source, s)
+                    if params_hash not in cls.searched:
+                        candidate.append((x, y))
+
+            if not candidate:
+                return False, f"explored all this depth: {s[0]}"
+            else:
+                s[3] = candidate[random.randint(0, len(candidate)-1)]
+
+        params_hash = cls.get_params_hash(source, s)
+        if params_hash in cls.searched:
+            return False, f"this params is already explored: {params_hash}"
+
+        return True, s
+
+    @classmethod
+    def exec_solver_and_send_server(cls, source, params) -> bool:
+        depth, loose_tl, strict_tl, fsp = params
+        cmd = f"{SOLVERS_DIR}/build_procedure {prob_dir} initial {cls.tmp_procs_file_path} procedure {source} {fsp[0]} {fsp[1]} {loose_tl} {strict_tl} {depth}"
+        try:
+            result = subprocess.run(cmd, shell=True)
+        except KeyboardInterrupt:
+            print("keyboard interrupt")
+            return False
+        if result.returncode != 0:
+            print("solver failed")
+            return False
+        with open(cls.tmp_procs_file_path, mode='r') as f:
+            procs = f.read()
+        penalty, cost = calc_penalty_and_cost(cls.tmp_procs_file_path)
+        print(f"penalty, cost: {penalty}, {cost}")
+        if penalty == 0:
+            result = requests.post(SERVER_URL + "/answer/complete_procedure", data=procs)
+        else:
+            result = requests.post(SERVER_URL + "/answer/initial_procedure", data=procs)
+        cls.searched.add(cls.get_params_hash(source, params))
+        print(f"status_code, text: {result.status_code}, {result.text}")
+        return True
+
+    @classmethod
+    def build(cls):
+        while True:
+            InitialProcsManager.update_initial_procs()
+
+            mode = input(('\n'
+                          '1: new,  2: continue, 3: show-procs\n'
+                          'a: auto, r: repeat,   c: change mode, Enter: reload\n'
+                          ' >>> '))
+            if mode not in cls.mode_types:
+                print("invalid mode: ", mode)
+                continue
+
+            if mode == '1' or mode == '2':
+                if mode == '1':
+                    source = "new"
+                else:
+                    InitialProcsManager.input_option_and_show()
+                    succeeded, result = InitialProcsManager.input_id_and_get_file_path()
+                    if not succeeded:
+                        print(result)
+                        continue
                     else:
-                        found = True
-                        best_procs = proc[1].stdout.read()
-            search_log.append(proc[0])
-    except KeyboardInterrupt:
-        print("keyboard interrupt")
+                        source = result
+                s = input('\n' + ', '.join(cls.labels) + '\n >>> ')
+                succeeded, result = cls.extract_params(source, s)
+                if not succeeded:
+                    print(result)
+                    continue
+                cls.exec_solver_and_send_server(source, result)
+            elif mode == '3':
+                InitialProcsManager.input_option_and_show()
+            elif mode == 'a':
+                s = input("depth range >>> ")
+                depth_range = s.split()
+                if not castable(lambda x: tuple(map(int, x)), depth_range):
+                    print("invalid depth_range: ", s)
+                    continue
+                depth_range = tuple(map(int, depth_range))
+                dl = depth_range[0]
+                dr = depth_range[1]
+                if dl < 4 or dl > dr:
+                    print("invalid depth_range: ", s)
+                    continue
+                depths = list(range(dl, dr+1))
 
-    if not promptly:
-        if found:
-            best_procs = best_procs.decode("utf-8")
+                ss = input('\n' + ', '.join(cls.labels[1:]) + '\n >>> ')
+                source = "new"
+
+                while True:
+                    depth = random.choice(depths)
+                    s = f"{depth},{ss}"
+                    succeeded, result = cls.extract_params(source, s)
+                    if not succeeded:
+                        depths.remove(depth)
+                        if not depths:
+                            break
+                        else:
+                            continue
+
+                    succeeded = cls.exec_solver_and_send_server(source, result)
+                    if not succeeded:
+                        break
+            elif mode == 'r':
+                s = input('\n' + ', '.join(cls.labels) + '\n >>> ')
+                source = "new"
+                while True:
+                    succeeded, result = cls.extract_params(source,  s)
+                    if not succeeded:
+                        print(result)
+                        break
+                    succeeded = cls.exec_solver_and_send_server(source, result)
+                    if not succeeded:
+                        break
+            elif mode == 'c':
+                return
+            elif mode == '':
+                continue
+
+
+class ProcsCompleter:
+    mode_types = ['1', '2', '3', 'a', 'r', 'c', '']
+
+    labels = ["search_type", "promptly", "parallel_deg"]
+    casters = [lambda x: x if x in ['a', 'p', 's'] else tuple(map(int, tuple(x.split()))), lambda x: bool(int(x)), int]
+    checkers = [lambda x: x in ['a', 'p', 's'] or len(x) == 2, tautology, lambda x: 1 <= x <= 12]
+    default_values = ["p", "0", "12"]
+    searched = set()
+
+    @classmethod
+    def get_params_hash(cls, source, params):
+        return f"{source} {' '.join(map(str, params))}"
+
+    @classmethod
+    def extract_params(cls, s):
+        s = s.split(',')
+        s.extend(cls.default_values[len(s):])
+
+        s = [cls.default_values[i] if s[i] == '' else s[i] for i in range(len(cls.labels))]
+        print(s)
+
+        for i in range(len(cls.labels)):
+            if not castable(cls.casters[i], s[i]):
+                return False, f"invalid {cls.labels[i]}: {s[i]}"
+            else:
+                s[i] = cls.casters[i](s[i])
+
+            if not cls.checkers[i](s[i]):
+                return False, f"invalid {cls.labels[i]}: {s[i]}"
+
+        return True, s
+
+    @classmethod
+    def get_options(cls, search_type, source):
+        if search_type == "a":
+            options = [
+                (x, y, X, Y) for x in range(2, div_num[0]+1) for y in range(2, div_num[1]+1) for X in range(div_num[0]) for Y in range(div_num[1])
+                if cls.get_params_hash(source, (x, y, X, Y)) not in cls.searched
+            ]
+            options.sort(key=lambda x: x[0]+x[1])
+        elif search_type == "p":
+            rect_sizes = [
+                (x, y) for x in range(2, div_num[0]+1) for y in range(2, div_num[1]+1)
+                if not max(x, y) > min(x, y)*2
+            ]
+            rect_sizes.sort(key=lambda x: x[0]+x[1])
+            pruned_rect_sizes = []
+            dns = set()
+            for x, y in rect_sizes:
+                dn = (int((div_num[0] + x-2) / x), int((div_num[1] + y-2) / y))
+                if dn not in dns:
+                    pruned_rect_sizes.append((x, y))
+                    dns.add(dn)
+            options = [
+                (x, y, X, Y) for (x, y) in pruned_rect_sizes for X in range(div_num[0]) for Y in range(div_num[1])
+                if cls.get_params_hash(source, (x, y, X, Y)) not in cls.searched
+            ]
+            options.sort(key=lambda x: x[0]+x[1])
+        else:
+            rect_size = search_type
+            options = [
+                (rect_size[0], rect_size[1], X, Y) for X in range(div_num[0]) for Y in range(div_num[1])
+                if cls.get_params_hash(source, (rect_size[0], rect_size[1], X, Y)) not in cls.searched
+            ]
+        return search_type == "p", options
+
+    @classmethod
+    def exec_solver_and_send_server(cls, source, pruning, options, params):
+        _, promptly, parallel_deg = params
+
+        best_procs = ""
+        best_cost = None
+        processes = []
+        min_rect_size_sum = 1e10
+
+        try:
+            for opt in options:
+                if pruning and opt[0] + opt[1] > min_rect_size_sum+3:
+                    continue
+                str_opt = ' '.join(map(str, opt))
+                new_proc = subprocess.Popen(
+                    f'{SOLVERS_DIR}/build_procedure {prob_dir} complete cout both {source} {str_opt}',
+                    stdout=subprocess.PIPE,
+                    shell=True
+                )
+                if len(processes) < parallel_deg:
+                    processes.append((cls.get_params_hash(source, opt), new_proc))
+                else:
+                    wrote = False
+                    while True:
+                        for k in range(parallel_deg):
+                            if processes[k][1].poll() is not None:
+                                if processes[k][1].returncode == 0:
+                                    cost = int(processes[k][1].stdout.readline())
+                                    if best_cost is None or best_cost > cost:
+                                        rect_size = int(processes[k][0].split()[1]) + int(processes[k][0].split()[2])
+                                        min_rect_size_sum = min(min_rect_size_sum, rect_size)
+                                        best_cost = cost
+                                        if promptly:
+                                            best_procs = processes[k][1].stdout.read().decode("utf-8")
+                                            result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
+                                            print(f"status_code, text: {result.status_code}, {result.text}")
+                                        else:
+                                            best_procs = processes[k][1].stdout.read()
+                                cls.searched.add(processes[k][0])
+                                processes[k] = (f"{source} {str_opt}", new_proc)
+                                wrote = True
+                                break
+                        if wrote:
+                            break
+                        time.sleep(1/1000)
+
+            for proc in processes:
+                proc[1].wait()
+                if proc[1].returncode == 0:
+                    cost = int(proc[1].stdout.readline())
+                    if best_cost is None or best_cost > cost:
+                        best_cost = cost
+                        if promptly:
+                            best_procs = proc[1].stdout.read().decode("utf-8")
+                            result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
+                            print(f"status_code, text: {result.status_code}, {result.text}")
+                        else:
+                            best_procs = proc[1].stdout.read()
+
+                cls.searched.add(proc[0])
+        except KeyboardInterrupt:
+            print("keyboard interrupt")
+
+        if not promptly:
+            if best_cost is not None:
+                best_procs = best_procs.decode("utf-8")
+                result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
+                print(f"status_code, text: {result.status_code}, {result.text}")
+            else:
+                print("not found")
+
+    @classmethod
+    def exec_solver_simply_and_send_to_server(cls, source):
+        process = subprocess.run(
+            f'{SOLVERS_DIR}/build_procedure {prob_dir} complete cout both {source}',
+            stdout=subprocess.PIPE,
+            shell=True
+        )
+        if process.returncode == 0:
+            best_procs = (b'\n'.join(process.stdout.splitlines()[1:])).decode("utf-8")
             result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
             print(f"status_code, text: {result.status_code}, {result.text}")
         else:
-            print("not found")
+            print("[] failed to build a procedure")
 
-    return search_log
+    @classmethod
+    def complete(cls):
+        while True:
+            InitialProcsManager.update_initial_procs()
 
+            mode = input(('\n'
+                          '1: new,  2: continue, 3: show-procs\n'
+                          'c: change mode,   Enter: reload\n'
+                          ' >>> '))
+            if mode not in cls.mode_types:
+                print("invalid mode: ", mode)
+                continue
 
-def complete_procedure_and_send_to_server(parallel_deg, promptly, source, search_type, searched, div_num):
-    pruning, options = get_options(source, search_type, searched, div_num)
-    if len(options) == 0:
-        print("this type has already been searched completely")
-        return
-
-    search_log = exec_search(parallel_deg, promptly, source, pruning, options)
-
-    searched |= set(search_log)
-
-
-def complete_procedure_by_rough_sorter_and_send_to_server(source):
-    process = subprocess.run(
-        f'{SOLVERS_DIR}/build_procedure {prob_dir} complete cout both {source}',
-        stdout=subprocess.PIPE,
-        shell=True
-    )
-    best_procs = (b'\n'.join(process.stdout.splitlines()[1:])).decode("utf-8")
-    result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
-    print(f"status_code, text: {result.status_code}, {result.text}")
-
-
-def build_initial_procs():
-    tmp_procs_file_path = prob_dir + "/tmp_procs.txt"
-
-    searched = set()
-    search_log = []
-
-    with open(prob_dir + "/prob.txt", mode='r') as f:
-        settings = f.read().split()
-        dnx = int(settings[0])
-        dny = int(settings[1])
-
-    while True:
-        InitialProcsManager.update_initial_procs()
-        print("\n1: new, 2:improve, 3: redo, 4: show-procs, 5: show-log")
-        print(" >>> ", end="")
-        mode = input()
-        if mode == "1":
-            print("depth, loose_time_limit, strict_time_limit, first_selected_pos")
-            print(" >>> ", end="")
-            opt = input().split(',')
-            opt.extend(['', '', '', ''])
-            depth = int(opt[0]) if is_num(opt[0]) else 12
-            loose_time_limit = int(opt[1]) if is_num(opt[1]) else 5000
-            strict_time_limit = int(opt[2]) if is_num(opt[2]) else 120000
-            if len(opt[3].split()) >= 2 and is_num(opt[3].split()[0]) and is_num(opt[3].split()[1]):
-                fsp = (int(opt[3].split()[0]), int(opt[3].split()[1]))
-                if fsp[0] < 0 or fsp[0] >= dnx or fsp[1] < 0 or fsp[1] >= dny:
-                    print(f"fsp is invalid: {fsp}, (div_num: {dnx}, {dny})")
-                    continue
-            else:
-                candidate = list()
-                for y in range(dny):
-                    for x in range(dnx):
-                        if not '-'.join(map(str, [depth, x, y])) in searched:
-                            candidate.append((x, y))
-
-                if len(candidate) == 0:
-                    print(f"explored all this depth: {depth}")
-                    continue
+            if mode == '1' or mode == '2':
+                if mode == '1':
+                    source = "new"
                 else:
-                    fsp = candidate[random.randint(0, len(candidate)-1)]
-            params = '-'.join(map(str, [depth, fsp[0], fsp[1]]))
-            if params in searched:
-                print("already searched")
-                continue
-
-            searched.add(params)
-            search_log.append(params)
-
-            cmd = f"{SOLVERS_DIR}/build_procedure {prob_dir} initial {tmp_procs_file_path} procedure new {fsp[0]} {fsp[1]} {loose_time_limit} {strict_time_limit} {depth}"
-            exec_initial_procedure_builder_and_send_to_server(cmd, tmp_procs_file_path)
-
-            print("searched: ", depth, loose_time_limit, strict_time_limit, fsp)
-        elif mode == "2":
-            input_option_and_show_procs()
-            file_name = input_id_and_return_file_name()
-            if file_name is None:
-                continue
-
-            print("depth, loose_time_limit, strict_time_limit, first_selected_pos")
-            print(" >>> ", end="")
-            opt = input().split(',')
-            opt.extend(['', '', '', ''])
-            depth = int(opt[0]) if is_num(opt[0]) else 12
-            loose_time_limit = int(opt[1]) if is_num(opt[1]) else 5000
-            strict_time_limit = int(opt[2]) if is_num(opt[2]) else 120000
-            if len(opt[3].split()) >= 2 and is_num(opt[3].split()[0]) and is_num(opt[3].split()[1]):
-                fsp = (int(opt[3].split()[0]), int(opt[3].split()[1]))
-            else:
-                fsp = (-1, -1)
-
-            print("file name: ", file_name)
-            cmd = f"{SOLVERS_DIR}/build_procedure {prob_dir} initial {tmp_procs_file_path} procedure {prob_dir}/ini_procs/{file_name} {fsp[0]} {fsp[1]} {loose_time_limit} {strict_time_limit} {depth}"
-            exec_initial_procedure_builder_and_send_to_server(cmd, tmp_procs_file_path)
-            print("searched: ", depth, loose_time_limit, strict_time_limit, fsp)
-        elif mode == "3":
-            if len(search_log) == 0:
-                print("not yet explored")
-                continue
-
-            print("depth, loose_time_limit, strict_time_limit, first_selected_pos")
-            print(" >>> ", end="")
-            opt = input().split(',')
-            opt.extend(['', '', '', ''])
-            depth = int(opt[0]) if is_num(opt[0]) else 12
-            loose_time_limit = int(opt[1]) if is_num(opt[1]) else 5000
-            strict_time_limit = int(opt[2]) if is_num(opt[2]) else 120000
-            if len(opt[3].split()) >= 2 and is_num(opt[3].split()[0]) and is_num(opt[3].split()[1]):
-                fsp = (int(opt[3].split()[0]), int(opt[3].split()[1]))
-            else:
-                fsp = (-1, -1)
-
-            cmd = f"{SOLVERS_DIR}/build_procedure {prob_dir} initial {tmp_procs_file_path} procedure {tmp_procs_file_path} {fsp[0]} {fsp[1]} {loose_time_limit} {strict_time_limit} {depth}"
-            exec_initial_procedure_builder_and_send_to_server(cmd, tmp_procs_file_path)
-            print("searched: ", depth, loose_time_limit, strict_time_limit, fsp)
-        elif mode == "4":
-            input_option_and_show_procs()
-        elif mode == "5":
-            if len(search_log) == 0:
-                print("not yet explored")
-            else:
-                print("depth, fsp.x, fsp.y")
-                for params in search_log:
-                    depth, fsp_x, fsp_y = params.split('-')
-                    print("{:>5}, {:>5}, {:>5}".format(depth, fsp_x, fsp_y))
-
-
-def complete_initial_procs():
-    searched = set()
-
-    with open(prob_dir + "/prob.txt", mode='r') as f:
-        settings = f.read().split()
-        dnx = int(settings[0])
-        dny = int(settings[1])
-        div_num = (dnx, dny)
-
-    while True:
-        InitialProcsManager.update_initial_procs()
-
-        print("\n1: using initial procs, 2:new, 3: show-procs, 4: show-log")
-        print(" >>> ", end="")
-        mode = input()
-        if mode == "1" or mode == "2":
-            if mode == "1":
-                input_option_and_show_procs()
-                file_name = input_id_and_return_file_name()
-                if file_name is None:
-                    continue
-                source = f"{prob_dir}/ini_procs/{file_name}"
-                if source is None:
-                    continue
-            else:
-                source = "new"
-
-            print("search type, promptly, parallel_deg")
-            opt = input().split(',')
-            opt.extend(['', '', ''])
-            if opt[0] != "a" and opt[0] != "p" and opt[0] != "r":
-                if len(opt[0].split()) >= 2 and is_num(opt[0].split()[0]) and is_num(opt[0].split()[1]):
-                    rect_size = (int(opt[0].split()[0]), int(opt[0].split()[1]))
-                    if rect_size[0] < 2 or rect_size[0] >= dnx or rect_size[1] < 2 or rect_size[1] >= dny:
-                        print(f"rect_size is invalid: {rect_size}, (div_num: {dnx}, {dny})")
+                    InitialProcsManager.input_option_and_show()
+                    succeeded, result = InitialProcsManager.input_id_and_get_file_path()
+                    if not succeeded:
+                        print(result)
                         continue
-                    search_type = rect_size
-                elif opt[0] == '':
-                    search_type = "p"
-                else:
-                    print("search type must be 'a(all)' or 'p(pruning)' or r(rough) or (x,y)")
-                    print(f"your input: {opt[0]}")
+                    else:
+                        source = result
+                s = input('\n' + ', '.join(cls.labels) + '\n >>> ')
+                succeeded, result = cls.extract_params(s)
+                if not succeeded:
+                    print(result)
                     continue
-            else:
-                search_type = opt[0]
-            promptly = False if opt[1] == '' or opt[1] == '0' else True
-            parallel_deg = int(opt[2]) if is_num(opt[2]) else 10
+                search_type = result[0]
 
-            if search_type == "r":
-                complete_procedure_by_rough_sorter_and_send_to_server(source)
+                if search_type in ['a', 'p', 's']:
+                    cls.exec_solver_simply_and_send_to_server(source)
+
+                if search_type == 's':
+                    continue
+
+                pruning, options = cls.get_options(search_type, source)
+                if not options:
+                    print("this type has already been searched completely")
+                    return
+                cls.exec_solver_and_send_server(source, pruning, options, result)
+            elif mode == '3':
+                InitialProcsManager.input_option_and_show()
+            elif mode == 'c':
+                return
+            elif mode == '':
+                continue
+
+
+def input_mode_and_exec():
+    while True:
+        mode_types = ['1', '2', '3']
+        mode = input('1: initial, 2: complete, 3: submit\n >>> ')
+        if mode not in mode_types:
+            print("invalid mode: ", mode)
+            continue
+        try:
+            if mode == '1':
+                InitialProcsBuilder.build()
+            elif mode == '2':
+                ProcsCompleter.complete()
             else:
-                complete_procedure_and_send_to_server(parallel_deg, promptly, source, search_type, searched, div_num)
-        elif mode == "3":
-            input_option_and_show_procs()
-        elif mode == "4":
-            pass
+                result = requests.get(SERVER_URL + "/submit/procedure")
+                print(f"status_code, text: {result.status_code}, {result.text}")
+        except KeyboardInterrupt:
+            print("keyboard interrupt")
+            continue
 
 
 if __name__ == "__main__":
     status = wait_until_match_start()
     prob_dir = get_prob_and_processing_for_solver()
+    dnx, dny = get_div_num()
+    div_num = (dnx, dny)
+
     if status == "restoring" and sys.argv[1] == "primary":
         restore_image()
 
@@ -500,10 +599,8 @@ if __name__ == "__main__":
     get_original_state()
 
     InitialProcsManager.init()
+    InitialProcsBuilder.init()
 
     # exit(-1)
+    input_mode_and_exec()
 
-    if sys.argv[2] == "initial":
-        build_initial_procs()
-    else:
-        complete_initial_procs()
