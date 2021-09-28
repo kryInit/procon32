@@ -124,9 +124,9 @@ int main(int argc, char *argv[]) {
         }
 
         if (argc == 6) {
-            StrictSorter::sort_by_roughly_sort(state);
+            bool succeeded = StrictSorter::sort_by_roughly_sort(state);
+            if (!succeeded) return -1;
             optimize_procedures(state.proc);
-            if ((int)state.proc.size() > selectable_times) return -1;
             ans = state.proc;
         } else if (Pos pos1(atoi(argv[6]), atoi(argv[7])), pos2(atoi(argv[8]), atoi(argv[9])); pos1.x == 16 && pos1.y == 16) {
             // (const Pos& first_selected_pos, const Pos& first_target, State& state)
