@@ -20,7 +20,7 @@ class Const:
     IMAGE_URL = SERVER_URL + "/problem.ppm"
     PING_URL = SERVER_URL + "/test"
     SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
-    PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../../")
+    PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../")
     WORKPLACE = SERVER_DIR + "/tmp"
     DATA_DIR = SERVER_DIR + "/data"
     ANSWER_DIR = DATA_DIR + "/answers"

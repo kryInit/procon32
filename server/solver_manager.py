@@ -32,7 +32,7 @@ import os
 SERVER_URL = "http://192.168.1.14:3000"
 # SERVER_URL = "http://10.55.21.164:3000"
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../../")
+PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../")
 DATA_DIR = PROJECT_TOP_DIR + "/.data"
 SOLVERS_DIR = PROJECT_TOP_DIR + "/algo/bin"
 DEFAULT_WAIT_TIME = 1
