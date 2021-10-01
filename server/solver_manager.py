@@ -29,13 +29,18 @@ import sys
 import os
 
 
-# SERVER_URL = "http://192.168.1.14:3000"
-SERVER_URL = "http://10.55.21.164:3000"
+SERVER_URL = "http://192.168.1.14:3000"
+# SERVER_URL = "http://10.55.21.164:3000"
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../../")
 DATA_DIR = PROJECT_TOP_DIR + "/.data"
 SOLVERS_DIR = PROJECT_TOP_DIR + "/algo/bin"
 DEFAULT_WAIT_TIME = 1
+
+
+def print_match_info():
+    result = requests.get(f"{SERVER_URL}/get_match_info")
+    print(result.text)
 
 
 def castable(data_type, data):
@@ -68,12 +73,24 @@ def calc_penalty_and_cost(procs_path) -> (int, int):
 
 class InitialProcsManager:
     new_id = 0
+    file_name_set = set()
     initial_procs = []
+
+    @classmethod
+    def register(cls, file_name):
+        ini_procs_path = prob_dir + "/ini_procs"
+        penalty, cost = calc_penalty_and_cost(ini_procs_path + "/" + file_name)
+        cls.initial_procs.append((cls.new_id, file_name, penalty, cost))
+        cls.file_name_set.add(file_name)
+        cls.new_id += 1
 
     @classmethod
     def update_initial_procs(cls):
         ini_procs_path = prob_dir + "/ini_procs"
         files = os.listdir(ini_procs_path)
+        for file_name in files:
+            if file_name not in cls.file_name_set:
+                cls.register(file_name)
         excepts = '\n'.join(files)
         result = requests.post(SERVER_URL + "/get_initial_procedures", data=excepts)
 
@@ -84,9 +101,7 @@ class InitialProcsManager:
             zipf.extractall(ini_procs_path)
             new_files = zipf.namelist()
         for file_name in new_files:
-            penalty, cost = calc_penalty_and_cost(ini_procs_path + "/" + file_name)
-            cls.initial_procs.append((cls.new_id, file_name, penalty, cost))
-            cls.new_id += 1
+            cls.register(file_name)
         os.remove(zip_path)
 
     @classmethod
@@ -98,7 +113,9 @@ class InitialProcsManager:
         cls.update_initial_procs()
 
     @classmethod
-    def show(cls, limit=10, sort_by_penalty=False):
+    def show(cls, limit=10, sort_by_penalty=False, search_log=None):
+        if search_log is None:
+            search_log = dict()
         tmp = cls.initial_procs.copy()
         if sort_by_penalty:
             tmp.sort(key=lambda x: x[2])
@@ -108,7 +125,8 @@ class InitialProcsManager:
         print("{:>3}, {:>8}, {:>8}, {:>8}".format("id", "hash(5)", "penalty", "cost"))
         for i in range(min(len(tmp), limit)):
             procs = tmp[i]
-            print("{:>3}, {:>8}, {:>8}, {:>8}".format(procs[0], procs[1][:5], procs[2], procs[3]))
+            log = ' '.join(search_log[procs[1]]) if procs[1] in search_log else ""
+            print("{:>3}, {:>8}, {:>8}, {:>8},".format(procs[0], procs[1][:5], procs[2], procs[3]), log)
 
     @classmethod
     def get_file_name_by_id(cls, proc_id) -> (bool, str):
@@ -121,13 +139,15 @@ class InitialProcsManager:
         return False, f"id is not found: {proc_id}"
 
     @classmethod
-    def input_option_and_show(cls):
+    def input_option_and_show(cls, search_log=None):
+        if search_log is None:
+            search_log = dict()
         opt = input("line limit, sort_by_cost\n >>> ").split(',')
         opt.extend(['', ''])
         line_limit = int(opt[0]) if castable(int, opt[0]) else 10
         sort_by_penalty = int(opt[1]) if castable(int, opt[1]) else 0
         sort_by_penalty = sort_by_penalty == 1
-        InitialProcsManager.show(line_limit, sort_by_penalty)
+        InitialProcsManager.show(line_limit, sort_by_penalty, search_log)
 
     @classmethod
     def input_id_and_get_file_path(cls) -> (bool, str):
@@ -287,7 +307,8 @@ class InitialProcsBuilder:
     @classmethod
     def build(cls):
         while True:
-            InitialProcsManager.update_initial_procs()
+            print()
+            print_match_info()
 
             mode = input(('\n'
                           '1: new,  2: continue, 3: show-procs\n'
@@ -296,6 +317,8 @@ class InitialProcsBuilder:
             if mode not in cls.mode_types:
                 print("invalid mode: ", mode)
                 continue
+
+            InitialProcsManager.update_initial_procs()
 
             if mode == '1' or mode == '2':
                 if mode == '1':
@@ -372,6 +395,7 @@ class ProcsCompleter:
     checkers = [lambda x: x in ['a', 'p', 's'] or len(x) == 2, tautology, lambda x: 1 <= x <= 12]
     default_values = ["p", "0", "12"]
     searched = set()
+    search_log = dict()
 
     @classmethod
     def get_params_hash(cls, source, params):
@@ -383,7 +407,6 @@ class ProcsCompleter:
         s.extend(cls.default_values[len(s):])
 
         s = [cls.default_values[i] if s[i] == '' else s[i] for i in range(len(cls.labels))]
-        print(s)
 
         for i in range(len(cls.labels)):
             if not castable(cls.casters[i], s[i]):
@@ -513,26 +536,28 @@ class ProcsCompleter:
             result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
             print(f"status_code, text: {result.status_code}, {result.text}")
         else:
-            print("[] failed to build a procedure")
+            print("[simple solver] couldn't build a procedure")
 
     @classmethod
     def complete(cls):
         while True:
-            InitialProcsManager.update_initial_procs()
+            print()
+            print_match_info()
 
-            mode = input(('\n'
-                          '1: new,  2: continue, 3: show-procs\n'
+            mode = input(('1: new,  2: continue, 3: show-procs\n'
                           'c: change mode,   Enter: reload\n'
                           ' >>> '))
             if mode not in cls.mode_types:
                 print("invalid mode: ", mode)
                 continue
 
+            InitialProcsManager.update_initial_procs()
+
             if mode == '1' or mode == '2':
                 if mode == '1':
                     source = "new"
                 else:
-                    InitialProcsManager.input_option_and_show()
+                    InitialProcsManager.input_option_and_show(cls.search_log)
                     succeeded, result = InitialProcsManager.input_id_and_get_file_path()
                     if not succeeded:
                         print(result)
@@ -546,6 +571,11 @@ class ProcsCompleter:
                     continue
                 search_type = result[0]
 
+                if os.path.basename(source) not in cls.search_log:
+                    cls.search_log[os.path.basename(source)] = [search_type]
+                else:
+                    cls.search_log[os.path.basename(source)].append(search_type)
+
                 if search_type in ['a', 'p', 's']:
                     cls.exec_solver_simply_and_send_to_server(source)
 
@@ -558,7 +588,7 @@ class ProcsCompleter:
                     return
                 cls.exec_solver_and_send_server(source, pruning, options, result)
             elif mode == '3':
-                InitialProcsManager.input_option_and_show()
+                InitialProcsManager.input_option_and_show(cls.search_log)
             elif mode == 'c':
                 return
             elif mode == '':
@@ -566,8 +596,11 @@ class ProcsCompleter:
 
 
 def input_mode_and_exec():
+    mode_types = ['1', '2', '3']
     while True:
-        mode_types = ['1', '2', '3']
+        print()
+        print_match_info()
+
         mode = input('1: initial, 2: complete, 3: submit\n >>> ')
         if mode not in mode_types:
             print("invalid mode: ", mode)

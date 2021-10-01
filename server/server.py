@@ -15,8 +15,10 @@ app = Flask(__name__)
 
 
 class Const:
-    ANSWER_URL = "https://procon32-practice.kosen.work"
-    IMAGE_URL = "https://procon32-practice.kosen.work/problem.ppm"
+    TOKEN = "020b5f50092c10ede13278e08c59b9085410fd1ef1f4d705db43b8fefc7b5b7a"
+    SERVER_URL = "https://procon32-practice.kosen.work"
+    IMAGE_URL = SERVER_URL + "/problem.ppm"
+    PING_URL = SERVER_URL + "/test"
     SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
     PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../../")
     WORKPLACE = SERVER_DIR + "/tmp"
@@ -30,8 +32,15 @@ class Const:
     SQL_PATH = DATA_DIR + '/answer.sqlite'
     SOLVERS_DIR = PROJECT_TOP_DIR + "/algo/bin"
     PORT_NUM = 3000
-    TOKEN = "020b5f50092c10ede13278e08c59b9085410fd1ef1f4d705db43b8fefc7b5b7a"
     DEFAULT_WAIT_TIME = 10
+
+
+def castable(data_type, data):
+    try:
+        data_type(data)
+    except (ValueError, TypeError):
+        return False
+    return True
 
 
 class Util:
@@ -43,14 +52,12 @@ class Util:
         return result.stdout.decode('utf-8').rstrip('\r\n')
 
     @classmethod
-    def get_interval(cls, status_code, text, interval) -> int:
+    def get_interval(cls, status_code, text, default_interval) -> int:
         if status_code != 400:
-            return interval
+            return default_interval
         tokens = text.split(" ")
-        if tokens[0] != "AccessTimeError":
-            return interval
-        if len(tokens) != 2:
-            return interval
+        if tokens[0] != "AccessTimeError" or len(tokens) != 2 or not castable(int, tokens[1]):
+            return default_interval
         return int(tokens[1])
 
     @classmethod
@@ -69,6 +76,7 @@ class Util:
 class AnswerManager:
     table_nameR = "restored_image"
     table_nameB = "initial_procedure"
+    now_min_cost = None
 
     @classmethod
     def init(cls):
@@ -90,6 +98,12 @@ class AnswerManager:
 
         conn.commit()
         conn.close()
+
+    @classmethod
+    def restart(cls):
+        if os.path.exists(Const.BEST_PROCEDURE_PATH):
+            penalty, cost = Util.calc_penalty_and_cost(Const.BEST_PROCEDURE_PATH)
+            cls.now_min_cost = cost
 
     @classmethod
     def save_restored_image(cls, answer, sent=False, coord_mismatch_cnt=None, dir_mismatch_cnt=None):
@@ -126,22 +140,23 @@ class AnswerManager:
 
         tmp_path = Const.WORKPLACE + "/tmp_procs.txt"
         with open(tmp_path, mode='w') as f:
-            f.write (procs)
+            f.write(procs)
         new_penalty, new_cost = Util.calc_penalty_and_cost(tmp_path)
         os.remove(tmp_path)
 
         if not os.path.exists(Const.BEST_PROCEDURE_PATH):
             with open(Const.BEST_PROCEDURE_PATH, mode='w') as f:
                 f.write(procs)
+                cls.now_min_cost = new_cost
                 return f"first save, cost: {new_cost}"
         else:
-            old_penalty, old_cost = Util.calc_penalty_and_cost(Const.BEST_PROCEDURE_PATH)
-
+            old_cost = cls.now_min_cost
             if old_cost >= new_cost:
+                cls.now_min_cost = new_cost
                 print(f"update cost: {old_cost} -> {new_cost}")
                 with open(Const.BEST_PROCEDURE_PATH, mode='w') as f:
                     f.write(procs)
-                    return f"upgraded, cost: {old_cost} -> {new_cost}"
+                return f"upgraded, cost: {old_cost} -> {new_cost}"
             else:
                 return f"not best, cost: {old_cost} <= {new_cost}"
 
@@ -243,34 +258,60 @@ class AnswerManager:
 
 
 class Operator:
+    now_min_cost = None
+    submission_times = int(0)
 
     @classmethod
     def submit(cls, answer) -> (int, int):
-        r = requests.post(Const.ANSWER_URL, headers={"procon-token": Const.TOKEN}, data=answer)
+        cls.submission_times += 1
+
+        r = requests.post(Const.SERVER_URL, headers={"procon-token": Const.TOKEN}, data=answer)
+
+        print(f"[submit] status_code, text: {r.status_code}, {r.text}")
 
         if r.status_code != 200:
             print("[send answer] failed (debug時以外は起こり得ないはずなのでこの文章が見えたら確認すること)")
             return None, None
-
-        print(f"[submit] status_code, text: {r.status_code}, {r.text}")
 
         tmp = r.text.strip().split()
 
         coord_mismatch_cnt = int(tmp[1])
         dir_mismatch_cnt = int(tmp[2])
 
+        if coord_mismatch_cnt == 0 and dir_mismatch_cnt == 0:
+            tmp_path = Const.WORKPLACE + "/tmp_procs.txt"
+            with open(tmp_path, mode='w') as f:
+                f.write(answer)
+            penalty, cost = Util.calc_penalty_and_cost(tmp_path)
+            os.remove(tmp_path)
+            if cls.now_min_cost is None:
+                cls.now_min_cost = cost
+            else:
+                cls.now_min_cost = min(cls.now_min_cost, cost)
+
         return coord_mismatch_cnt, dir_mismatch_cnt
 
     @classmethod
-    def get_status_code_and_content(cls) -> (int, bytes):
+    def get_status_code_and_content_and_headers(cls) -> (int, bytes, map):
         r = requests.get(Const.IMAGE_URL, headers={"procon-token": Const.TOKEN})
-        return r.status_code, r.content
+        return r.status_code, r.content, r.headers
+
+    @classmethod
+    def get_end_time(cls) -> int:
+        r = requests.get(Const.IMAGE_URL, headers={"procon-token": Const.TOKEN})
+        return r.headers['Procon-End-At']
+
+    @classmethod
+    def ping(cls):
+        r = requests.get(Const.PING_URL, headers={"procon-token": Const.TOKEN})
+        return r.text, r.status_code
 
 
 class GameManager:
     status = "waiting"  # waiting, restoring, building
     start_time = None  # 開始時間をUNIX時間で, Noneならまだわからないかサーバー起動時に開始されていた
-    answered_cnt = int(0)
+    end_time = None
+    last_submitted_procs_hash = None
 
     @classmethod
     def init(cls):
@@ -281,12 +322,17 @@ class GameManager:
         os.mkdir(Const.DATA_DIR)
         os.mkdir(Const.WORKPLACE)
         os.mkdir(Const.ANSWER_DIR)
+        AnswerManager.init()
 
     @classmethod
     def restart(cls):
+        AnswerManager.restart()
         if AnswerManager.restoration_completed():
+            cls.end_time = Operator.get_end_time()
             cls.status = "building"
-            cls.answered_cnt = AnswerManager.get_sent_count()
+            Operator.submission_times = AnswerManager.get_sent_count()
+            status_code, content, headers = Operator.get_status_code_and_content_and_headers()
+            cls.end_time = int(headers['Procon-End-At'])
 
     @classmethod
     def get_waiting_time(cls):
@@ -311,13 +357,14 @@ class GameManager:
             return
 
         while True:
-            status_code, content = Operator.get_status_code_and_content()
+            status_code, content, headers = Operator.get_status_code_and_content_and_headers()
 
             if status_code == 200:
                 # 本来はここで処理すべきではないと思うけど何度もサーバーへ取りに行くのは申し訳なさがあるのでここで
                 with open(Const.IMAGE_PATH, 'wb') as f:
                     f.write(content)
                 subprocess.run(f"python3 {Const.PROJECT_TOP_DIR}/utility/image_divider.py {Const.IMAGE_PATH}", shell=True)
+                cls.end_time = int(headers['Procon-End-At'])
                 break
 
             text = content.decode('utf-8')
@@ -339,8 +386,7 @@ class GameManager:
         if not is_valid:
             return False, msg
 
-        if cls.answered_cnt == 0:
-            cls.answered_cnt = 1
+        if Operator.submission_times == 0:
             coord_mismatch_cnt, dir_mismatch_cnt = Operator.submit(Util.convert_restore2procs(answer))
             AnswerManager.save_restored_image(answer, True, coord_mismatch_cnt, dir_mismatch_cnt)
             if coord_mismatch_cnt is None or dir_mismatch_cnt is None:
@@ -387,7 +433,6 @@ class GameManager:
         if sent:
             return False, f"incorrect {coord_mismatch_cnt} {dir_mismatch_cnt}"
 
-        cls.answered_cnt = cls.answered_cnt+1
         coord_mismatch_cnt, dir_mismatch_cnt = Operator.submit(Util.convert_restore2procs(answer))
         AnswerManager.update_restored_image_state(answer, coord_mismatch_cnt, dir_mismatch_cnt)
         if coord_mismatch_cnt is None or dir_mismatch_cnt is None:
@@ -401,16 +446,26 @@ class GameManager:
 
     @classmethod
     def submit_best_procedure(cls) -> (bool, str):
-        penalty, cost = Util.calc_penalty_and_cost(Const.BEST_PROCEDURE_PATH)
+        if not os.path.exists(Const.BEST_PROCEDURE_PATH):
+            return False, f"procedure is not exists"
+
         with open(Const.BEST_PROCEDURE_PATH, mode='r') as f:
             procs = f.read()
 
+        procs_hash = hashlib.sha256(procs.encode('utf-8')).hexdigest()
+        if cls.last_submitted_procs_hash == procs_hash:
+            return False, "this procedure is already submitted"
+
+        cls.last_submitted_procs_hash = procs_hash
+
+        print(procs)
+
         coord_mismatch_cnt, dir_mismatch_cnt = Operator.submit(procs)
-        cls.answered_cnt += 1
         if coord_mismatch_cnt is None or dir_mismatch_cnt is None:
             return False, "FormatError"
 
         if coord_mismatch_cnt == 0 and dir_mismatch_cnt == 0:
+            penalty, cost = Util.calc_penalty_and_cost(Const.BEST_PROCEDURE_PATH)
             return True, f"correct, cost: {cost}"
         else:
             return False, f"incorrect {coord_mismatch_cnt} {dir_mismatch_cnt}"
@@ -446,6 +501,29 @@ def get_image():
     return response
 
 
+@app.route('/ping', methods=['GET'])
+def ping():
+    return Operator.ping()
+
+
+@app.route('/end_time', methods=['GET'])
+def get_end_time():
+    is_valid_status_now, msg = GameManager.now_status_is('restoring', 'building')
+    if not is_valid_status_now:
+        return msg, 400
+
+    return str(GameManager.end_time), 200
+
+
+@app.route('/res_time', methods=['GET'])
+def get_res_time():
+    is_valid_status_now, msg = GameManager.now_status_is('restoring', 'building')
+    if not is_valid_status_now:
+        return msg, 400
+
+    return str(GameManager.end_time - time.time()), 200
+
+
 @app.route('/status', methods=['GET'])
 def get_status():
     if GameManager.status == "waiting":
@@ -465,9 +543,9 @@ def get_original_state():
     return result, 200
 
 
-@app.route('/answered_times', methods=['GET'])
-def get_answered_times():
-    return str(GameManager.answered_cnt), 200
+@app.route('/submission_times', methods=['GET'])
+def get_submission_times():
+    return str(Operator.submission_times), 200
 
 
 @app.route('/answer/restoration', methods=['POST'])
@@ -539,12 +617,23 @@ def get_initial_procedure():
     return response
 
 
+@app.route('/get_match_info', methods=['GET'])
+def get_match_info():
+    is_valid_status_now, msg = GameManager.now_status_is('restoring', 'building')
+    if not is_valid_status_now:
+        return msg, 400
+    sent_min_cost = Operator.now_min_cost
+    saved_min_cost = AnswerManager.now_min_cost
+    sent_min_cost = "inf" if sent_min_cost is None else sent_min_cost
+    saved_min_cost = "inf" if saved_min_cost is None else saved_min_cost
+    return f"res_time, min_cost(sent, saved), res_submission: {int(GameManager.end_time - time.time())}, ({sent_min_cost}, {saved_min_cost}), {10-Operator.submission_times}", 200
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "restart":
         GameManager.restart()
     else:
         GameManager.init()
-        AnswerManager.init()
     if GameManager.status == "waiting":
         Thread(target=GameManager.update_status_while_waiting).start()
-    app.run(host='0.0.0.0', port=3000, threaded=False)
+    app.run(host='0.0.0.0', port=Const.PORT_NUM, threaded=False)
