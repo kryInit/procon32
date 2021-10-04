@@ -30,6 +30,7 @@ import os
 
 
 SERVER_URL = "http://192.168.1.14:3000"
+SERVER_URL = "http://10.55.23.44:3000"
 # SERVER_URL = "http://10.55.21.164:3000"
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../")
@@ -113,20 +114,35 @@ class InitialProcsManager:
         cls.update_initial_procs()
 
     @classmethod
-    def show(cls, limit=10, sort_by_penalty=False, search_log=None):
+    def show(cls, limit=10, sort_by_penalty=False, search_log=None, filtering=True):
         if search_log is None:
             search_log = dict()
         tmp = cls.initial_procs.copy()
         if sort_by_penalty:
-            tmp.sort(key=lambda x: x[2])
+            tmp.sort(key=lambda x: (x[2], x[3]))
         else:
-            tmp.sort(key=lambda x: x[3])
+            tmp.sort(key=lambda x: (x[3], x[2]))
 
         print("{:>3}, {:>8}, {:>8}, {:>8}".format("id", "hash(5)", "penalty", "cost"))
-        for i in range(min(len(tmp), limit)):
-            procs = tmp[i]
-            log = ' '.join(search_log[procs[1]]) if procs[1] in search_log else ""
-            print("{:>3}, {:>8}, {:>8}, {:>8},".format(procs[0], procs[1][:5], procs[2], procs[3]), log)
+        if filtering:
+            print_count = 0
+            min_val = 1e20
+            for i in range(len(tmp)):
+                procs = tmp[i]
+                val = procs[3] if sort_by_penalty else procs[2]
+                if min_val > val:
+                    min_val = val
+                    print_count += 1
+                    log = ' '.join(search_log[procs[1]]) if procs[1] in search_log else ""
+                    print("{:>3}, {:>8}, {:>8}, {:>8},".format(procs[0], procs[1][:5], procs[2], procs[3]), log)
+
+                    if print_count == limit:
+                        break
+        else:
+            for i in range(min(len(tmp), limit)):
+                procs = tmp[i]
+                log = ' '.join(search_log[procs[1]]) if procs[1] in search_log else ""
+                print("{:>3}, {:>8}, {:>8}, {:>8},".format(procs[0], procs[1][:5], procs[2], procs[3]), log)
 
     @classmethod
     def get_file_name_by_id(cls, proc_id) -> (bool, str):
@@ -142,12 +158,15 @@ class InitialProcsManager:
     def input_option_and_show(cls, search_log=None):
         if search_log is None:
             search_log = dict()
-        opt = input("line limit, sort_by_cost\n >>> ").split(',')
+        opt = input("line limit, sort_by_penalty, filter\n >>> ").split(',')
         opt.extend(['', ''])
         line_limit = int(opt[0]) if castable(int, opt[0]) else 10
         sort_by_penalty = int(opt[1]) if castable(int, opt[1]) else 0
         sort_by_penalty = sort_by_penalty == 1
-        InitialProcsManager.show(line_limit, sort_by_penalty, search_log)
+        filtering = int(opt[2]) if castable(int, opt[2]) else 1
+        filtering = filtering == 1
+
+        InitialProcsManager.show(line_limit, sort_by_penalty, search_log, filtering)
 
     @classmethod
     def input_id_and_get_file_path(cls) -> (bool, str):
@@ -226,13 +245,19 @@ def get_div_num() -> (int, int):
     return int(settings[0]), int(settings[1])
 
 
+def get_settings_str() -> (int, int):
+    with open(prob_dir + "/prob.txt", mode='r') as f:
+        settings = f.read().split()
+    return f"div_num, selectable_times, select_cost, swap_cost: ({settings[0]}, {settings[1]}), {settings[2]}, {settings[3]}, {settings[4]}"
+
+
 class InitialProcsBuilder:
     mode_types = ['1', '2', '3', 'a', 'r', 'c', '']
 
     tmp_procs_file_path = ""
     labels = ["depth", "loose_time_limit", "strict_time_limit", "first_select_pos"]
     casters = [int, int, int, lambda x: x if x == "random" else tuple(map(int, tuple(x.split())))]
-    checkers = [lambda x: x >= 4, lambda x: x > 0, lambda x: x > 0, lambda x: x == "random" or (len(x) == 2 and 0 <= x[0] < dnx and 0 <= x[1] < dny)]
+    checkers = [lambda x: x >= 4, lambda x: x > 0, lambda x: x > 0, lambda x: x == "random" or (len(x) == 2 and x[0] < dnx and x[1] < dny)]
     default_values = ["14", "5000", "120000", "random"]
     searched = set()
 
@@ -585,7 +610,7 @@ class ProcsCompleter:
                 pruning, options = cls.get_options(search_type, source)
                 if not options:
                     print("this type has already been searched completely")
-                    return
+                    continue
                 cls.exec_solver_and_send_server(source, pruning, options, result)
             elif mode == '3':
                 InitialProcsManager.input_option_and_show(cls.search_log)
@@ -598,7 +623,7 @@ class ProcsCompleter:
 def input_mode_and_exec():
     mode_types = ['1', '2', '3']
     while True:
-        print()
+        print("\n", get_settings_str())
         print_match_info()
 
         mode = input('1: initial, 2: complete, 3: submit\n >>> ')

@@ -16,7 +16,8 @@ app = Flask(__name__)
 
 class Const:
     TOKEN = "020b5f50092c10ede13278e08c59b9085410fd1ef1f4d705db43b8fefc7b5b7a"
-    SERVER_URL = "https://procon32-practice.kosen.work"
+    # SERVER_URL = "https://procon32-practice.kosen.work"
+    SERVER_URL = "http://10.55.23.44:5000"
     IMAGE_URL = SERVER_URL + "/problem.ppm"
     PING_URL = SERVER_URL + "/test"
     SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
