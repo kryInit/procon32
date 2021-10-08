@@ -29,9 +29,7 @@ import sys
 import os
 
 
-SERVER_URL = "http://192.168.1.14:3000"
-SERVER_URL = "http://10.55.23.44:3000"
-# SERVER_URL = "http://10.55.21.164:3000"
+SERVER_URL = "http://192.168.1.7:3000" if len(sys.argv) > 1 and sys.argv[1] == "local" else sys.argv[1]
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_TOP_DIR = os.path.normpath(SERVER_DIR + "/../")
 DATA_DIR = PROJECT_TOP_DIR + "/.data"
@@ -550,9 +548,23 @@ class ProcsCompleter:
                 print("not found")
 
     @classmethod
-    def exec_solver_simply_and_send_to_server(cls, source):
+    def exec_simple_solver_and_send_to_server(cls, source):
         process = subprocess.run(
             f'{SOLVERS_DIR}/build_procedure {prob_dir} complete cout both {source}',
+            stdout=subprocess.PIPE,
+            shell=True
+        )
+        if process.returncode == 0:
+            best_procs = (b'\n'.join(process.stdout.splitlines()[1:])).decode("utf-8")
+            result = requests.post(SERVER_URL + "/answer/complete_procedure", data=best_procs)
+            print(f"status_code, text: {result.status_code}, {result.text}")
+        else:
+            print("[simple solver] couldn't build a procedure")
+
+    @classmethod
+    def exec_obvious_solver_and_send_to_server(cls, source):
+        process = subprocess.run(
+            f'{SOLVERS_DIR}/build_procedure {prob_dir} obviously cout both {source}',
             stdout=subprocess.PIPE,
             shell=True
         )
@@ -602,7 +614,8 @@ class ProcsCompleter:
                     cls.search_log[os.path.basename(source)].append(search_type)
 
                 if search_type in ['a', 'p', 's']:
-                    cls.exec_solver_simply_and_send_to_server(source)
+                    cls.exec_simple_solver_and_send_to_server(source)
+                    cls.exec_obvious_solver_and_send_to_server(source)
 
                 if search_type == 's':
                     continue
@@ -644,12 +657,21 @@ def input_mode_and_exec():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("two arguments must be required.")
+        sys.exit(-1)
+    if sys.argv[2] not in ["primary", "ordinary"]:
+        print("2nd arguments must be 'primary' or 'ordinary'")
+        sys.exit(-1)
+
+    print(f"server url: {SERVER_URL}")
+
     status = wait_until_match_start()
     prob_dir = get_prob_and_processing_for_solver()
     dnx, dny = get_div_num()
     div_num = (dnx, dny)
 
-    if status == "restoring" and sys.argv[1] == "primary":
+    if status == "restoring" and sys.argv[2] == "primary":
         restore_image()
 
     wait_until_procedure_building_start()
@@ -659,6 +681,5 @@ if __name__ == "__main__":
     InitialProcsManager.init()
     InitialProcsBuilder.init()
 
-    # exit(-1)
     input_mode_and_exec()
 

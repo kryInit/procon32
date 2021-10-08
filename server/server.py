@@ -16,8 +16,18 @@ app = Flask(__name__)
 
 class Const:
     TOKEN = "020b5f50092c10ede13278e08c59b9085410fd1ef1f4d705db43b8fefc7b5b7a"
-    # SERVER_URL = "https://procon32-practice.kosen.work"
-    SERVER_URL = "http://10.55.23.44:5000"
+    PRODUCTION_SERVER_URL = "https://procon32-akita.kosen.work"
+    SUB_SERVER_URL = "https://procon32-sub.kosen.work"
+    PRACTICE_SERVER_URL = "https://procon32-practice.kosen.work"
+    LOCAL_SERVER_URL = "http://192.168.1.7:5000"
+
+    SERVER_TYPE = sys.argv[1] if len(sys.argv) > 1 else "undefined"
+    SERVER_URL = PRODUCTION_SERVER_URL if SERVER_TYPE == "production" \
+        else SUB_SERVER_URL if SERVER_TYPE == "sub" \
+        else PRACTICE_SERVER_URL if SERVER_TYPE == "practice" \
+        else LOCAL_SERVER_URL if SERVER_TYPE == "local" \
+        else SERVER_TYPE
+
     IMAGE_URL = SERVER_URL + "/problem.ppm"
     PING_URL = SERVER_URL + "/test"
     SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -631,10 +641,20 @@ def get_match_info():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "restart":
-        GameManager.restart()
-    else:
+    if len(sys.argv) != 3:
+        print("two arguments must be required.")
+        sys.exit(-1)
+    if sys.argv[2] not in ["init", "restart"]:
+        print("2nd arguments must be 'init' or 'restart'")
+        sys.exit(-1)
+
+    print(f"server url: {Const.SERVER_URL}")
+
+    if sys.argv[2] == "init":
         GameManager.init()
+    else:
+        GameManager.restart()
+
     if GameManager.status == "waiting":
         Thread(target=GameManager.update_status_while_waiting).start()
     app.run(host='0.0.0.0', port=Const.PORT_NUM, threaded=False)
