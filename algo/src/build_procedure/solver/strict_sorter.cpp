@@ -22,7 +22,6 @@ array<array<array<pair<Pos, Direction>, 4>, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> get_a
     return result;
 }
 
-
 array<array<array<pair<Pos, Direction>, 4>, MAX_DIV_NUM_X>, MAX_DIV_NUM_Y> neighborhood_pos{};
 
 bool calc_shortest_path(Path& path, const Pos& s, const Pos& t, const State& state) {
@@ -189,6 +188,25 @@ void move_to_correct_pos(const Pos& target, State& state) {
     if (succeeded) {
         state.board_state[destination.y][destination.x] = State::sorted;
     } else EXIT_DEBUG("failed");
+}
+
+void move_to_correct_pos_obviously(const Pos& target, State& state) {
+
+    if (state.board_state[target.y][target.x] != State::ordinary) {
+        EXIT_DEBUG("target's state isn't ordinary");
+    }
+
+    Pos destination = state.orig_pos[target.y][target.x];
+    if (target == destination) {
+        state.board_state[destination.y][destination.x] = State::sorted;
+        return;
+    }
+
+    static Path targets_path;
+    calc_shortest_path(targets_path, target, destination, state);
+    state.select(target);
+    state.move_selected_pos(targets_path);
+    state.board_state[destination.y][destination.x] = State::sorted;
 }
 
 void move_to_correct_pos(const Pos& target, const Pos& first_buddy, Direction free_dir, State& state) {
@@ -368,7 +386,6 @@ struct TransitionType {
     return transition_types;
 }
 
-
 void calc_best_procs_for_2x2() {
     constexpr array<int, 4> offset{16,64,256, 1024};
     array<bool, 4096> visited{};
@@ -438,6 +455,7 @@ void transition(const TransitionType& tt, State& state) {
     if (tt.has_buddy) move_to_correct_pos(tt.target, tt.buddy, tt.free_dir, state);
     else move_to_correct_pos(tt.target, state);
 }
+
 void revert_transition(const TransitionType& tt, State& state, const int prev_path_size) {
     state.revert_move_selected_pos(prev_path_size);
     if (tt.has_buddy) {
@@ -453,6 +471,7 @@ void revert_transition(const TransitionType& tt, State& state, const int prev_pa
         state.board_state[destination.y][destination.x] = State::ordinary;
     }
 }
+
 void sort_last_2x2(State& state, int max_select_times, bool minimize_cost = false) {
     if (max_select_times < 1) EXIT_DEBUG("");
     constexpr array<int, 4> offset{16,64,256, 1024};
@@ -499,8 +518,6 @@ void sort_last_2x2(State& state, int max_select_times, bool minimize_cost = fals
             break;
         }
     }
-
-
 
     auto& procs = StrictSorter::best_procs_for_2x2[idx];
     if (procs.empty()) EXIT_DEBUG("");
@@ -566,6 +583,7 @@ void StrictSorter::sort_start2finish(const Pos& first_selected_pos, const Pos& f
 
     sort_last_2x2(state, max(2, selectable_times - (int)state.proc.size()), true);
 }
+
 void StrictSorter::sort_partially(const Pos& first_selected_pos, const Pos& UL, const Pos& dp, State& state) {
 
     State orig_state = state;
@@ -747,3 +765,53 @@ bool StrictSorter::sort_by_roughly_sort(State& state) {
     optimize_procedures(state.proc);
     return true;
 }
+
+bool StrictSorter::sort_obviously(State& state, Pos first_target) {
+    state.first_sorted_pos = state.orig_pos[first_target.y][first_target.x];
+    move_to_correct_pos_obviously(first_target, state);
+
+    State best_state, tmp_state;
+    while(true) {
+        auto transition_types = get_all_possible_transition_types(state);
+        if (transition_types.empty()) break;
+        double min_cost = 1e20;
+        for(const auto& transition_type : transition_types) {
+            tmp_state = state;
+            if (transition_type.has_buddy) {
+                Pos buddy = transition_type.buddy;
+                Pos buddy_destination = tmp_state.orig_pos[buddy.y][buddy.x];
+                move_to_correct_pos_obviously(transition_type.target, tmp_state);
+                buddy = tmp_state.get_now_pos_by_original_pos(buddy_destination);
+                move_to_correct_pos_obviously(buddy, tmp_state);
+            } else {
+                move_to_correct_pos_obviously(transition_type.target, tmp_state);
+            }
+
+
+            double cost = calc_cost(tmp_state);
+            if (min_cost > cost) {
+                min_cost = cost;
+                best_state = tmp_state;
+            }
+        }
+        state = best_state;
+        if ((int)state.proc.size() > selectable_times) {
+            optimize_procedures(state.proc);
+            if ((int)state.proc.size() > selectable_times) return false;
+        }
+    }
+    int min_cost = INT_MAX;
+    rep(i,div_num.y) rep(j,div_num.x) if (state.board_state[i][j] != State::sorted) {
+        tmp_state = state;
+        tmp_state.select(Pos(j,i));
+        sort_last_2x2(tmp_state, max(2, selectable_times - (int)tmp_state.proc.size()), true);
+        int tmp_cost = calc_cost(tmp_state);
+        if (min_cost > tmp_cost) {
+            min_cost = tmp_cost;
+            best_state = tmp_state;
+        }
+    }
+    state = best_state;
+    return true;
+}
+

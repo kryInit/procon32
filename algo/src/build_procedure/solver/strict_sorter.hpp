@@ -15,5 +15,6 @@ namespace StrictSorter {
     void sort_partially(const Pos& first_selected_pos, const Pos& UL, const Pos& dp, State& state);
 
     bool sort_by_roughly_sort(State& state);
+    bool sort_obviously(State& state, Pos first_sorting_pos);
 };
 

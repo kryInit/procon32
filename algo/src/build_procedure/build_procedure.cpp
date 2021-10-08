@@ -1,4 +1,4 @@
-// build_procedure [simply, initial, complete] [cout, path] [cost, procedure, both] args...
+// build_procedure [simply, obviously, initial, complete] [cout, path] [cost, procedure, both] args...
 
 #include <comparable_data.hpp>
 #include <timing_device.hpp>
@@ -76,8 +76,8 @@ int main(int argc, char *argv[]) {
     const string out_dest = string(argv[3]);
     const string out_kind = string(argv[4]);
 
-    if (!(mode == "simply" || mode == "initial" || mode == "complete")) EXIT_DEBUG("mode: ", mode);
-    if (!(out_kind == "cout" || out_kind == "procedure" || out_kind == "both")) EXIT_DEBUG("out_kind: ", out_kind);
+    if (!(mode == "simply" || mode == "obviously" || mode == "initial" || mode == "complete")) EXIT_DEBUG("mode: ", mode);
+    if (!(out_kind == "cost" || out_kind == "procedure" || out_kind == "both")) EXIT_DEBUG("out_kind: ", out_kind);
 
     div_num = settings.div_num;
     swap_cost = settings.swap_cost;
@@ -91,6 +91,33 @@ int main(int argc, char *argv[]) {
 
     if (mode == "simply") {
         ans = SimpleSolver()(original_positions, settings, argc, argv);
+    } else if (mode == "obviously") {
+        State state(original_positions);
+        if (string(argv[5]) != "new") {
+            const string initial_procs_path = string(argv[5]);
+            Procedures procs = input_procedure(initial_procs_path);
+            for(const auto& proc : procs) {
+                state.select(proc.selected_pos);
+                state.move_selected_pos(proc.path);
+            }
+        }
+        bool succeeded = false;
+        int min_cost = INT_MAX;
+        State tmp_state;
+        rep(i,div_num.y) rep(j,div_num.x) {
+            tmp_state = state;
+            Pos first_target(j,i);
+            bool tmp_succeeded = StrictSorter::sort_obviously(tmp_state, first_target);
+            if (!tmp_succeeded) continue;
+            optimize_procedures(tmp_state.proc);
+            int tmp_cost = StrictSorter::calc_cost(tmp_state);
+            if (min_cost > tmp_cost) {
+                min_cost = tmp_cost;
+                ans = tmp_state.proc;
+                succeeded = true;
+            }
+        }
+        if (!succeeded) return -1;
     } else if (mode == "initial") {
         // program /Users/rk/Projects/procon32/.tmp_data/tmp initial cout new 1 1 10000 120000 16
         State state(original_positions);
